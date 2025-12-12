@@ -8,7 +8,7 @@ const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "ScamGuard - AI-Powered Scam Call Detection",
+  title: "Anti-Scam - AI-Powered Scam Call Detection",
   description: "Real-time AI-powered scam call detection to keep you safe from phone scams",
   generator: "v0.app",
   icons: {

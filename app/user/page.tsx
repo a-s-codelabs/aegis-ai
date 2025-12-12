@@ -292,7 +292,7 @@ export default function UserDashboard() {
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
               <Shield className="h-6 w-6 text-primary-foreground" />
             </div>
-            <span className="text-xl font-semibold text-foreground">ScamGuard</span>
+            <span className="text-xl font-semibold text-foreground">Anti-Scam</span>
           </Link>
           <nav className="flex items-center gap-6">
             <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
