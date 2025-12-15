@@ -1,11 +1,45 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Shield, Phone, PhoneOff, AlertTriangle, CheckCircle } from "lucide-react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { useRouter } from 'next/navigation';
+import {
+  Shield,
+  Phone,
+  PhoneOff,
+  AlertTriangle,
+  CheckCircle,
+  UserPlus,
+  Trash2,
+  Users,
+  LogOut,
+} from 'lucide-react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  findContactByPhoneNumber,
+  normalizePhoneNumber,
+  type Contact,
+} from '@/lib/utils/contacts';
+import { useToast } from '@/hooks/use-toast';
 
 interface Call {
   id: string;
@@ -25,11 +59,27 @@ interface Call {
   scamKeywords?: string[];
 }
 
+interface UserSession {
+  userId: string;
+  phoneNumber: string;
+  token: string;
+}
+
 export default function UserDashboard() {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [userSession, setUserSession] = useState<UserSession | null>(null);
   const [calls, setCalls] = useState<Call[]>([]);
   const [incomingCall, setIncomingCall] = useState<string | null>(null);
+  const [incomingCallContact, setIncomingCallContact] =
+    useState<Contact | null>(null);
   const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [isMonitoring, setIsMonitoring] = useState(false);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [isAddContactDialogOpen, setIsAddContactDialogOpen] = useState(false);
+  const [newContactName, setNewContactName] = useState('');
+  const [newContactPhone, setNewContactPhone] = useState('');
+  const [isLoadingContacts, setIsLoadingContacts] = useState(true);
   const wsRef = useRef<WebSocket | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -124,12 +174,142 @@ export default function UserDashboard() {
     return () => cleanup();
   }, []);
 
+  // Check authentication and load user contacts
+  useEffect(() => {
+    // Check if user is logged in
+    if (typeof window !== 'undefined') {
+      const sessionData = localStorage.getItem('userSession');
+      if (!sessionData) {
+        // Redirect to login if not authenticated
+        router.push('/login');
+        return;
+      }
+
+      try {
+        const session: UserSession = JSON.parse(sessionData);
+        setUserSession(session);
+        // Load user contacts from API
+        loadUserContacts(session.userId);
+      } catch (error) {
+        console.error('[Auth] Error parsing session:', error);
+        localStorage.removeItem('userSession');
+        router.push('/login');
+      }
+    }
+  }, [router]);
+
+  // Load user contacts from API
+  const loadUserContacts = async (userId: string) => {
+    try {
+      setIsLoadingContacts(true);
+      const response = await fetch(`/api/user/contacts?userId=${userId}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to load contacts');
+      }
+
+      const data = await response.json();
+      if (data.success && data.contacts) {
+        setContacts(data.contacts);
+        console.log('[Contacts] Loaded user contacts:', data.contacts.length);
+      }
+    } catch (error) {
+      console.error('[Contacts] Error loading contacts:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load contacts',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoadingContacts(false);
+    }
+  };
+
+  // Save contacts to API
+  const saveUserContacts = async (updatedContacts: Contact[]) => {
+    if (!userSession) return;
+
+    try {
+      const response = await fetch('/api/user/contacts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userSession.userId,
+          contacts: updatedContacts,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save contacts');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        console.log('[Contacts] Saved contacts successfully');
+      }
+    } catch (error) {
+      console.error('[Contacts] Error saving contacts:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to save contacts',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Handle logout
+  const handleLogout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('userSession');
+      router.push('/login');
+    }
+  };
+
   // Simulate incoming call
-  const simulateIncomingCall = () => {
-    const phoneNumber = `+1 (${Math.floor(Math.random() * 900) + 100}) ${
-      Math.floor(Math.random() * 900) + 100
-    }-${Math.floor(Math.random() * 9000) + 1000}`;
-    setIncomingCall(phoneNumber);
+  const simulateIncomingCall = (testPhoneNumber?: string) => {
+    const phoneNumber =
+      testPhoneNumber ||
+      `+1 (${Math.floor(Math.random() * 900) + 100}) ${
+        Math.floor(Math.random() * 900) + 100
+      }-${Math.floor(Math.random() * 9000) + 1000}`;
+
+    // Check if number is in user's contact list
+    const contact = findContactInList(phoneNumber, contacts);
+
+    // Only show popup if number is NOT in contacts
+    if (!contact) {
+      setIncomingCall(phoneNumber);
+      setIncomingCallContact(null);
+      console.log(
+        '[Incoming Call] Unknown number - showing protection popup:',
+        phoneNumber
+      );
+    } else {
+      // Number is in contacts - don't show popup, just log it
+      console.log(
+        '[Incoming Call] Number is in contacts, skipping popup:',
+        contact.name,
+        phoneNumber
+      );
+      setIncomingCall(null);
+      setIncomingCallContact(null);
+    }
+  };
+
+  // Helper function to find contact in a list
+  const findContactInList = (
+    phoneNumber: string,
+    contactList: Contact[]
+  ): Contact | null => {
+    const normalized = normalizePhoneNumber(phoneNumber);
+    return (
+      contactList.find((contact) => {
+        const contactNormalized = normalizePhoneNumber(contact.phoneNumber);
+        return contactNormalized === normalized;
+      }) || null
+    );
   };
 
   // Simulate conversation (scam or safe) for testing
@@ -206,6 +386,7 @@ export default function UserDashboard() {
   const handleUserAnswer = () => {
     if (!incomingCall) return;
     setIncomingCall(null);
+    setIncomingCallContact(null);
   };
 
   const handleDivert = async () => {
@@ -223,6 +404,7 @@ export default function UserDashboard() {
     setActiveCall(newCall);
     setCalls((prev) => [newCall, ...prev]);
     setIncomingCall(null);
+    setIncomingCallContact(null);
     setIsMonitoring(true);
 
     // Start AI conversation monitoring
@@ -655,6 +837,47 @@ export default function UserDashboard() {
     console.log('[End Call] Call ended, status:', updatedCall.status);
   };
 
+  const handleAddContact = () => {
+    if (!newContactName.trim() || !newContactPhone.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please enter both name and phone number',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const newContact: Contact = {
+      id: Date.now().toString(),
+      name: newContactName.trim(),
+      phoneNumber: newContactPhone.trim(),
+    };
+
+    const updatedContacts = [...contacts, newContact];
+    setContacts(updatedContacts);
+    saveUserContacts(updatedContacts);
+
+    setNewContactName('');
+    setNewContactPhone('');
+    setIsAddContactDialogOpen(false);
+
+    toast({
+      title: 'Success',
+      description: 'Contact added successfully',
+    });
+  };
+
+  const handleDeleteContact = (contactId: string) => {
+    const updatedContacts = contacts.filter((c) => c.id !== contactId);
+    setContacts(updatedContacts);
+    saveUserContacts(updatedContacts);
+
+    toast({
+      title: 'Success',
+      description: 'Contact deleted successfully',
+    });
+  };
+
   const getStatusBadge = (status: Call['status']) => {
     switch (status) {
       case 'scam':
@@ -713,6 +936,17 @@ export default function UserDashboard() {
             >
               Admin
             </Link>
+            {userSession && (
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground">
+                  {userSession.phoneNumber}
+                </span>
+                <Button variant="outline" size="sm" onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </Button>
+              </div>
+            )}
           </nav>
         </div>
       </header>
@@ -745,12 +979,32 @@ export default function UserDashboard() {
               Simulate Safe Call
             </Button>
             <Button
-              onClick={simulateIncomingCall}
+              onClick={() => simulateIncomingCall()}
               disabled={!!incomingCall || isMonitoring}
             >
               <Phone className="mr-2 h-4 w-4" />
               Simulate Incoming Call
             </Button>
+            {contacts.length > 0 && (
+              <Select
+                onValueChange={(contactPhone) => {
+                  simulateIncomingCall(contactPhone);
+                }}
+                disabled={!!incomingCall || isMonitoring}
+              >
+                <SelectTrigger className="w-[220px]">
+                  <Phone className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Call from Contact" />
+                </SelectTrigger>
+                <SelectContent>
+                  {contacts.map((contact) => (
+                    <SelectItem key={contact.id} value={contact.phoneNumber}>
+                      {contact.name} - {contact.phoneNumber}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </div>
 
@@ -876,6 +1130,131 @@ export default function UserDashboard() {
           </Card>
         </div>
 
+        <Card className="p-6 bg-card border-border mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">
+                Contacts
+              </h2>
+              {isLoadingContacts && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Loading contacts...
+                </p>
+              )}
+            </div>
+            <Dialog
+              open={isAddContactDialogOpen}
+              onOpenChange={setIsAddContactDialogOpen}
+            >
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Add Contact
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Contact</DialogTitle>
+                  <DialogDescription>
+                    Add a contact to your list. Calls from these numbers will
+                    not show the protection popup.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">
+                      Name
+                    </label>
+                    <Input
+                      placeholder="John Doe"
+                      value={newContactName}
+                      onChange={(e) => setNewContactName(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">
+                      Phone Number
+                    </label>
+                    <Input
+                      placeholder="+1 (555) 123-4567"
+                      value={newContactPhone}
+                      onChange={(e) => setNewContactPhone(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Format: +1 (555) 123-4567 or any format
+                    </p>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsAddContactDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button onClick={handleAddContact}>Add Contact</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+          {isLoadingContacts ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-muted-foreground">
+                Loading contacts...
+              </p>
+            </div>
+          ) : contacts.length === 0 ? (
+            <div className="text-center py-8">
+              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+              <p className="text-sm text-muted-foreground mb-4">
+                No contacts yet. Add contacts to test the call protection
+                feature.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Calls from numbers in your contacts will not show the protection
+                popup.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {contacts.map((contact) => (
+                <div
+                  key={contact.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-background border border-border"
+                >
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground">
+                      {contact.name}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {contact.phoneNumber}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => simulateIncomingCall(contact.phoneNumber)}
+                      disabled={!!incomingCall || isMonitoring}
+                      title="Test call from this contact (should NOT show popup)"
+                    >
+                      <Phone className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteContact(contact.id)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
         <Card className="p-6 bg-card border-border">
           <h2 className="text-lg font-semibold text-foreground mb-4">
             Recent Calls
@@ -919,7 +1298,7 @@ export default function UserDashboard() {
         </Card>
       </main>
 
-      {incomingCall && (
+      {incomingCall && !incomingCallContact && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
           <Card className="p-8 max-w-md w-full mx-4 bg-card border-border">
             <div className="text-center mb-6">
