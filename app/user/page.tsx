@@ -6,6 +6,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { findContactByPhoneNumber, type Contact } from "@/lib/utils/contacts"
 
 interface Call {
   id: string;
@@ -28,6 +29,7 @@ interface Call {
 export default function UserDashboard() {
   const [calls, setCalls] = useState<Call[]>([]);
   const [incomingCall, setIncomingCall] = useState<string | null>(null);
+  const [incomingCallContact, setIncomingCallContact] = useState<Contact | null>(null);
   const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
@@ -129,7 +131,20 @@ export default function UserDashboard() {
     const phoneNumber = `+1 (${Math.floor(Math.random() * 900) + 100}) ${
       Math.floor(Math.random() * 900) + 100
     }-${Math.floor(Math.random() * 9000) + 1000}`;
-    setIncomingCall(phoneNumber);
+
+    // Check if number is in contacts
+    const contact = findContactByPhoneNumber(phoneNumber);
+
+    // Only show popup if number is NOT in contacts
+    if (!contact) {
+      setIncomingCall(phoneNumber);
+      setIncomingCallContact(null);
+    } else {
+      // Number is in contacts - don't show popup, just log it
+      console.log('[Incoming Call] Number is in contacts, skipping popup:', contact.name);
+      setIncomingCall(null);
+      setIncomingCallContact(null);
+    }
   };
 
   // Simulate conversation (scam or safe) for testing
@@ -206,6 +221,7 @@ export default function UserDashboard() {
   const handleUserAnswer = () => {
     if (!incomingCall) return;
     setIncomingCall(null);
+    setIncomingCallContact(null);
   };
 
   const handleDivert = async () => {
@@ -223,6 +239,7 @@ export default function UserDashboard() {
     setActiveCall(newCall);
     setCalls((prev) => [newCall, ...prev]);
     setIncomingCall(null);
+    setIncomingCallContact(null);
     setIsMonitoring(true);
 
     // Start AI conversation monitoring
@@ -919,7 +936,7 @@ export default function UserDashboard() {
         </Card>
       </main>
 
-      {incomingCall && (
+      {incomingCall && !incomingCallContact && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
           <Card className="p-8 max-w-md w-full mx-4 bg-card border-border">
             <div className="text-center mb-6">
