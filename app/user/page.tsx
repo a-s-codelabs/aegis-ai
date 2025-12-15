@@ -28,6 +28,13 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   findContactByPhoneNumber,
   normalizePhoneNumber,
   type Contact,
@@ -978,6 +985,26 @@ export default function UserDashboard() {
               <Phone className="mr-2 h-4 w-4" />
               Simulate Incoming Call
             </Button>
+            {contacts.length > 0 && (
+              <Select
+                onValueChange={(contactPhone) => {
+                  simulateIncomingCall(contactPhone);
+                }}
+                disabled={!!incomingCall || isMonitoring}
+              >
+                <SelectTrigger className="w-[220px]">
+                  <Phone className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Call from Contact" />
+                </SelectTrigger>
+                <SelectContent>
+                  {contacts.map((contact) => (
+                    <SelectItem key={contact.id} value={contact.phoneNumber}>
+                      {contact.name} - {contact.phoneNumber}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </div>
 
