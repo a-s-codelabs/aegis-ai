@@ -37,10 +37,20 @@ export default function HomePage() {
             diversion
           </p>
           <div className="flex items-center justify-center gap-4">
-            <Link href="/user">
+            <Link href="/login">
               <Button size="lg" className="h-12 px-8">
                 <Phone className="mr-2 h-5 w-5" />
-                Start Protecting
+                Login
+              </Button>
+            </Link>
+            <Link href="/register">
+              <Button size="lg" variant="outline" className="h-12 px-8 bg-transparent">
+                Register
+              </Button>
+            </Link>
+            <Link href="/user">
+              <Button size="lg" variant="outline" className="h-12 px-8 bg-transparent">
+                Dashboard
               </Button>
             </Link>
             <Link href="/admin">

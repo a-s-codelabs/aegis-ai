@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useRouter } from 'next/navigation';
 import {
   Shield,
   Phone,
@@ -10,6 +11,7 @@ import {
   UserPlus,
   Trash2,
   Users,
+  LogOut,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -27,11 +29,10 @@ import {
 } from '@/components/ui/dialog';
 import {
   findContactByPhoneNumber,
-  getContacts,
-  addContact,
-  saveContacts,
+  normalizePhoneNumber,
   type Contact,
 } from '@/lib/utils/contacts';
+import { useToast } from '@/hooks/use-toast';
 
 interface Call {
   id: string;
@@ -51,7 +52,16 @@ interface Call {
   scamKeywords?: string[];
 }
 
+interface UserSession {
+  userId: string;
+  phoneNumber: string;
+  token: string;
+}
+
 export default function UserDashboard() {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [userSession, setUserSession] = useState<UserSession | null>(null);
   const [calls, setCalls] = useState<Call[]>([]);
   const [incomingCall, setIncomingCall] = useState<string | null>(null);
   const [incomingCallContact, setIncomingCallContact] =
@@ -62,6 +72,7 @@ export default function UserDashboard() {
   const [isAddContactDialogOpen, setIsAddContactDialogOpen] = useState(false);
   const [newContactName, setNewContactName] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
+  const [isLoadingContacts, setIsLoadingContacts] = useState(true);
   const wsRef = useRef<WebSocket | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -156,10 +167,98 @@ export default function UserDashboard() {
     return () => cleanup();
   }, []);
 
-  // Load contacts on mount
+  // Check authentication and load user contacts
   useEffect(() => {
-    setContacts(getContacts());
-  }, []);
+    // Check if user is logged in
+    if (typeof window !== 'undefined') {
+      const sessionData = localStorage.getItem('userSession');
+      if (!sessionData) {
+        // Redirect to login if not authenticated
+        router.push('/login');
+        return;
+      }
+
+      try {
+        const session: UserSession = JSON.parse(sessionData);
+        setUserSession(session);
+        // Load user contacts from API
+        loadUserContacts(session.userId);
+      } catch (error) {
+        console.error('[Auth] Error parsing session:', error);
+        localStorage.removeItem('userSession');
+        router.push('/login');
+      }
+    }
+  }, [router]);
+
+  // Load user contacts from API
+  const loadUserContacts = async (userId: string) => {
+    try {
+      setIsLoadingContacts(true);
+      const response = await fetch(`/api/user/contacts?userId=${userId}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to load contacts');
+      }
+
+      const data = await response.json();
+      if (data.success && data.contacts) {
+        setContacts(data.contacts);
+        console.log('[Contacts] Loaded user contacts:', data.contacts.length);
+      }
+    } catch (error) {
+      console.error('[Contacts] Error loading contacts:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load contacts',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoadingContacts(false);
+    }
+  };
+
+  // Save contacts to API
+  const saveUserContacts = async (updatedContacts: Contact[]) => {
+    if (!userSession) return;
+
+    try {
+      const response = await fetch('/api/user/contacts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userSession.userId,
+          contacts: updatedContacts,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save contacts');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        console.log('[Contacts] Saved contacts successfully');
+      }
+    } catch (error) {
+      console.error('[Contacts] Error saving contacts:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to save contacts',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Handle logout
+  const handleLogout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('userSession');
+      router.push('/login');
+    }
+  };
 
   // Simulate incoming call
   const simulateIncomingCall = (testPhoneNumber?: string) => {
@@ -169,8 +268,8 @@ export default function UserDashboard() {
         Math.floor(Math.random() * 900) + 100
       }-${Math.floor(Math.random() * 9000) + 1000}`;
 
-    // Check if number is in contacts
-    const contact = findContactByPhoneNumber(phoneNumber);
+    // Check if number is in user's contact list
+    const contact = findContactInList(phoneNumber, contacts);
 
     // Only show popup if number is NOT in contacts
     if (!contact) {
@@ -190,6 +289,20 @@ export default function UserDashboard() {
       setIncomingCall(null);
       setIncomingCallContact(null);
     }
+  };
+
+  // Helper function to find contact in a list
+  const findContactInList = (
+    phoneNumber: string,
+    contactList: Contact[]
+  ): Contact | null => {
+    const normalized = normalizePhoneNumber(phoneNumber);
+    return (
+      contactList.find((contact) => {
+        const contactNormalized = normalizePhoneNumber(contact.phoneNumber);
+        return contactNormalized === normalized;
+      }) || null
+    );
   };
 
   // Simulate conversation (scam or safe) for testing
@@ -719,25 +832,43 @@ export default function UserDashboard() {
 
   const handleAddContact = () => {
     if (!newContactName.trim() || !newContactPhone.trim()) {
-      alert('Please enter both name and phone number');
+      toast({
+        title: 'Error',
+        description: 'Please enter both name and phone number',
+        variant: 'destructive',
+      });
       return;
     }
 
-    const contact = addContact({
+    const newContact: Contact = {
+      id: Date.now().toString(),
       name: newContactName.trim(),
       phoneNumber: newContactPhone.trim(),
-    });
+    };
 
-    setContacts((prev) => [...prev, contact]);
+    const updatedContacts = [...contacts, newContact];
+    setContacts(updatedContacts);
+    saveUserContacts(updatedContacts);
+
     setNewContactName('');
     setNewContactPhone('');
     setIsAddContactDialogOpen(false);
+
+    toast({
+      title: 'Success',
+      description: 'Contact added successfully',
+    });
   };
 
   const handleDeleteContact = (contactId: string) => {
     const updatedContacts = contacts.filter((c) => c.id !== contactId);
-    saveContacts(updatedContacts);
     setContacts(updatedContacts);
+    saveUserContacts(updatedContacts);
+
+    toast({
+      title: 'Success',
+      description: 'Contact deleted successfully',
+    });
   };
 
   const getStatusBadge = (status: Call['status']) => {
@@ -798,6 +929,17 @@ export default function UserDashboard() {
             >
               Admin
             </Link>
+            {userSession && (
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground">
+                  {userSession.phoneNumber}
+                </span>
+                <Button variant="outline" size="sm" onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </Button>
+              </div>
+            )}
           </nav>
         </div>
       </header>
@@ -963,7 +1105,16 @@ export default function UserDashboard() {
 
         <Card className="p-6 bg-card border-border mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-foreground">Contacts</h2>
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">
+                Contacts
+              </h2>
+              {isLoadingContacts && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Loading contacts...
+                </p>
+              )}
+            </div>
             <Dialog
               open={isAddContactDialogOpen}
               onOpenChange={setIsAddContactDialogOpen}
@@ -1019,7 +1170,13 @@ export default function UserDashboard() {
               </DialogContent>
             </Dialog>
           </div>
-          {contacts.length === 0 ? (
+          {isLoadingContacts ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-muted-foreground">
+                Loading contacts...
+              </p>
+            </div>
+          ) : contacts.length === 0 ? (
             <div className="text-center py-8">
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
               <p className="text-sm text-muted-foreground mb-4">
