@@ -8,14 +8,21 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 
 interface Call {
-  id: string
-  number: string
-  timestamp: Date
-  duration: number
-  status: "incoming" | "diverted" | "scam" | "safe" | "active"
-  transcript?: { speaker: string; text: string }[]
-  scamScore?: number
-  scamKeywords?: string[]
+  id: string;
+  number: string;
+  timestamp: Date;
+  duration: number;
+  status:
+    | 'incoming'
+    | 'diverted'
+    | 'scam'
+    | 'safe'
+    | 'active'
+    | 'error'
+    | 'completed';
+  transcript?: { speaker: string; text: string }[];
+  scamScore?: number;
+  scamKeywords?: string[];
 }
 
 export default function UserDashboard() {
@@ -29,6 +36,8 @@ export default function UserDashboard() {
   const audioProcessorRef = useRef<ScriptProcessorNode | null>(null);
   const audioSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const isCleaningUpRef = useRef(false);
+  const audioQueueRef = useRef<string[]>([]);
+  const isPlayingAudioRef = useRef(false);
 
   const cleanup = () => {
     if (isCleaningUpRef.current) {
@@ -76,6 +85,10 @@ export default function UserDashboard() {
       }
       audioSourceRef.current = null;
     }
+
+    // Clear audio queue
+    audioQueueRef.current = [];
+    isPlayingAudioRef.current = false;
 
     // Stop all media tracks
     if (mediaStreamRef.current) {
@@ -182,8 +195,11 @@ export default function UserDashboard() {
 
       ws.onopen = () => {
         console.log('[AI Monitoring] WebSocket connected to ElevenLabs');
-        // Send initial configuration if needed
-        // The agent should start responding automatically
+        console.log(
+          '[AI Monitoring] Starting conversation - agent will begin speaking'
+        );
+        // The agent should start responding automatically when it receives audio
+        // Make sure audio is being sent from the microphone
       };
 
       ws.onmessage = async (event) => {
@@ -240,18 +256,46 @@ export default function UserDashboard() {
           if (eventData.type === 'audio' && eventData.audio_event) {
             // Only play audio if not cleaning up
             if (!isCleaningUpRef.current) {
-              await playAudio(eventData.audio_event.audio_base_64);
+              playAudio(eventData.audio_event.audio_base_64);
             }
           }
 
           // Handle other event types
           if (eventData.type === 'conversation_initiation_event') {
-            console.log('[AI Monitoring] Conversation initiated');
+            console.log(
+              '[AI Monitoring] Conversation initiated - agent is ready'
+            );
+            setActiveCall((prev) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                status: 'active',
+              };
+            });
           }
 
           if (eventData.type === 'conversation_end_event') {
             console.log('[AI Monitoring] Conversation ended by agent');
+            setActiveCall((prev) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                status: 'completed',
+              };
+            });
             // Don't cleanup here, let user control it
+          }
+
+          // Handle errors from ElevenLabs
+          if (eventData.type === 'error') {
+            console.error('[AI Monitoring] Error from ElevenLabs:', eventData);
+            setActiveCall((prev) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                status: 'error',
+              };
+            });
           }
         } catch (error) {
           console.error(
@@ -263,6 +307,14 @@ export default function UserDashboard() {
 
       ws.onerror = (error) => {
         console.error('[AI Monitoring] WebSocket error:', error);
+        // Update UI to show error
+        setActiveCall((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            status: 'error',
+          };
+        });
       };
 
       ws.onclose = (event) => {
@@ -272,13 +324,33 @@ export default function UserDashboard() {
           wasClean: event.wasClean,
         });
 
+        // Handle quota limit error specifically
+        if (event.code === 1002 && event.reason?.includes('quota')) {
+          console.error('[AI Monitoring] Quota limit exceeded');
+          setActiveCall((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              status: 'error',
+            };
+          });
+          alert(
+            'ElevenLabs API quota limit exceeded. Please check your account limits or upgrade your plan.\n\n' +
+              'The conversation could not continue due to quota restrictions.'
+          );
+          cleanup();
+          setIsMonitoring(false);
+          return;
+        }
+
         // Only cleanup if it was an unexpected close
         if (!isCleaningUpRef.current && event.code !== 1000) {
           console.log(
             '[AI Monitoring] Unexpected WebSocket close, cleaning up...'
           );
-          cleanup();
-          setIsMonitoring(false);
+          // Don't cleanup automatically - let user see what happened
+          // cleanup();
+          // setIsMonitoring(false);
         }
       };
 
@@ -293,6 +365,7 @@ export default function UserDashboard() {
       );
       audioProcessorRef.current = processor;
 
+      let audioChunkCount = 0;
       processor.onaudioprocess = (e) => {
         // Check if we're cleaning up or WebSocket is closed
         if (isCleaningUpRef.current || ws.readyState !== WebSocket.OPEN) {
@@ -301,12 +374,26 @@ export default function UserDashboard() {
 
         try {
           const inputData = e.inputBuffer.getChannelData(0);
+
+          // Check if there's actual audio input (not silence)
+          const hasAudio = inputData.some((sample) => Math.abs(sample) > 0.01);
+
           const pcm16 = new Int16Array(inputData.length);
           for (let i = 0; i < inputData.length; i++) {
             pcm16[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
           }
 
           if (ws.readyState === WebSocket.OPEN) {
+            audioChunkCount++;
+            // Log every 50 chunks (roughly every second) to track audio flow
+            if (audioChunkCount % 50 === 0) {
+              console.log(
+                `[Audio] Sent ${audioChunkCount} audio chunks to agent${
+                  hasAudio ? ' (audio detected)' : ' (silence)'
+                }`
+              );
+            }
+
             ws.send(
               JSON.stringify({
                 user_audio_chunk: btoa(
@@ -349,9 +436,28 @@ export default function UserDashboard() {
     }
   };
 
-  const playAudio = async (base64Audio: string) => {
-    // Don't play audio if we're cleaning up
-    if (isCleaningUpRef.current || !audioContextRef.current) {
+  const processAudioQueue = async () => {
+    // Don't process if already playing or cleaning up
+    if (
+      isPlayingAudioRef.current ||
+      isCleaningUpRef.current ||
+      !audioContextRef.current
+    ) {
+      return;
+    }
+
+    // If queue is empty, nothing to do
+    if (audioQueueRef.current.length === 0) {
+      return;
+    }
+
+    // Mark as playing
+    isPlayingAudioRef.current = true;
+
+    // Get the next audio chunk from queue
+    const base64Audio = audioQueueRef.current.shift();
+    if (!base64Audio) {
+      isPlayingAudioRef.current = false;
       return;
     }
 
@@ -382,15 +488,20 @@ export default function UserDashboard() {
 
       const source = audioContextRef.current.createBufferSource();
       source.buffer = audioBuffer;
+      source.playbackRate.value = 0.75;
       source.connect(audioContextRef.current.destination);
 
-      // Add onended handler to clean up
+      // Add onended handler to process next chunk in queue
       source.onended = () => {
         try {
           source.disconnect();
         } catch (e) {
           // Ignore disconnect errors
         }
+
+        // Mark as not playing and process next chunk
+        isPlayingAudioRef.current = false;
+        processAudioQueue();
       };
 
       source.start();
@@ -399,7 +510,23 @@ export default function UserDashboard() {
       if (!isCleaningUpRef.current) {
         console.error('[Audio] Error playing audio:', error);
       }
+      // Mark as not playing and try next chunk
+      isPlayingAudioRef.current = false;
+      processAudioQueue();
     }
+  };
+
+  const playAudio = (base64Audio: string) => {
+    // Don't queue audio if we're cleaning up
+    if (isCleaningUpRef.current || !audioContextRef.current) {
+      return;
+    }
+
+    // Add to queue
+    audioQueueRef.current.push(base64Audio);
+
+    // Start processing queue if not already playing
+    processAudioQueue();
   };
 
   const analyzeConversation = async (
