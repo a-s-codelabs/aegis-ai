@@ -132,6 +132,77 @@ export default function UserDashboard() {
     setIncomingCall(phoneNumber);
   };
 
+  // Simulate conversation (scam or safe) for testing
+  const simulateConversation = async (type: 'scam' | 'safe' = 'scam') => {
+    try {
+      // Fetch a simulated conversation
+      const response = await fetch('/api/simulate-conversation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, index: -1 }), // -1 for random
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch simulated conversation');
+      }
+
+      const data = await response.json();
+      const { conversation } = data;
+
+      // Create a call entry with the simulated transcript
+      const phoneNumber = `+1 (${Math.floor(Math.random() * 900) + 100}) ${
+        Math.floor(Math.random() * 900) + 100
+      }-${Math.floor(Math.random() * 9000) + 1000}`;
+
+      const newCall: Call = {
+        id: Date.now().toString(),
+        number: phoneNumber,
+        timestamp: new Date(),
+        duration: 0,
+        status: 'active',
+        transcript: conversation.transcript,
+      };
+
+      // Analyze the conversation for scam indicators
+      const analyzeResponse = await fetch('/api/analyze-transcript', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: conversation.transcript }),
+      });
+
+      if (analyzeResponse.ok) {
+        const analysis = await analyzeResponse.json();
+        newCall.scamScore = analysis.scamScore;
+        newCall.scamKeywords = analysis.keywords;
+
+        // Determine status based on scam score
+        if (analysis.scamScore > 60) {
+          newCall.status = 'scam';
+        } else {
+          newCall.status = 'safe';
+        }
+      }
+
+      // Set as active call and add to calls list
+      setActiveCall(newCall);
+      setCalls((prev) => [newCall, ...prev]);
+
+      console.log('[Simulate] Conversation simulated:', {
+        type,
+        name: conversation.name,
+        scamScore: newCall.scamScore,
+        status: newCall.status,
+      });
+    } catch (error) {
+      console.error('[Simulate] Error simulating conversation:', error);
+      alert(
+        `Failed to simulate conversation: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  };
+
   const handleUserAnswer = () => {
     if (!incomingCall) return;
     setIncomingCall(null);
@@ -243,7 +314,7 @@ export default function UserDashboard() {
                 { speaker: 'AI Agent', text: agentText },
               ];
 
-              // Analyze conversation with Gemini
+              // Analyze conversation for scam indicators
               analyzeConversation(call.id, newTranscript);
 
               return {
@@ -656,13 +727,31 @@ export default function UserDashboard() {
               Monitor and manage your protected calls
             </p>
           </div>
-          <Button
-            onClick={simulateIncomingCall}
-            disabled={!!incomingCall || isMonitoring}
-          >
-            <Phone className="mr-2 h-4 w-4" />
-            Simulate Incoming Call
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              onClick={() => simulateConversation('scam')}
+              disabled={!!incomingCall || isMonitoring}
+              variant="destructive"
+            >
+              <AlertTriangle className="mr-2 h-4 w-4" />
+              Simulate Scam Call
+            </Button>
+            <Button
+              onClick={() => simulateConversation('safe')}
+              disabled={!!incomingCall || isMonitoring}
+              variant="outline"
+            >
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Simulate Safe Call
+            </Button>
+            <Button
+              onClick={simulateIncomingCall}
+              disabled={!!incomingCall || isMonitoring}
+            >
+              <Phone className="mr-2 h-4 w-4" />
+              Simulate Incoming Call
+            </Button>
+          </div>
         </div>
 
         {activeCall && (
