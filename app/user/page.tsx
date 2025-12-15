@@ -1,12 +1,37 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Shield, Phone, PhoneOff, AlertTriangle, CheckCircle } from "lucide-react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { findContactByPhoneNumber, type Contact } from "@/lib/utils/contacts"
+import {
+  Shield,
+  Phone,
+  PhoneOff,
+  AlertTriangle,
+  CheckCircle,
+  UserPlus,
+  Trash2,
+  Users,
+} from 'lucide-react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  findContactByPhoneNumber,
+  getContacts,
+  addContact,
+  saveContacts,
+  type Contact,
+} from '@/lib/utils/contacts';
 
 interface Call {
   id: string;
@@ -29,9 +54,14 @@ interface Call {
 export default function UserDashboard() {
   const [calls, setCalls] = useState<Call[]>([]);
   const [incomingCall, setIncomingCall] = useState<string | null>(null);
-  const [incomingCallContact, setIncomingCallContact] = useState<Contact | null>(null);
+  const [incomingCallContact, setIncomingCallContact] =
+    useState<Contact | null>(null);
   const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [isMonitoring, setIsMonitoring] = useState(false);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [isAddContactDialogOpen, setIsAddContactDialogOpen] = useState(false);
+  const [newContactName, setNewContactName] = useState('');
+  const [newContactPhone, setNewContactPhone] = useState('');
   const wsRef = useRef<WebSocket | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -126,11 +156,18 @@ export default function UserDashboard() {
     return () => cleanup();
   }, []);
 
+  // Load contacts on mount
+  useEffect(() => {
+    setContacts(getContacts());
+  }, []);
+
   // Simulate incoming call
-  const simulateIncomingCall = () => {
-    const phoneNumber = `+1 (${Math.floor(Math.random() * 900) + 100}) ${
-      Math.floor(Math.random() * 900) + 100
-    }-${Math.floor(Math.random() * 9000) + 1000}`;
+  const simulateIncomingCall = (testPhoneNumber?: string) => {
+    const phoneNumber =
+      testPhoneNumber ||
+      `+1 (${Math.floor(Math.random() * 900) + 100}) ${
+        Math.floor(Math.random() * 900) + 100
+      }-${Math.floor(Math.random() * 9000) + 1000}`;
 
     // Check if number is in contacts
     const contact = findContactByPhoneNumber(phoneNumber);
@@ -139,9 +176,17 @@ export default function UserDashboard() {
     if (!contact) {
       setIncomingCall(phoneNumber);
       setIncomingCallContact(null);
+      console.log(
+        '[Incoming Call] Unknown number - showing protection popup:',
+        phoneNumber
+      );
     } else {
       // Number is in contacts - don't show popup, just log it
-      console.log('[Incoming Call] Number is in contacts, skipping popup:', contact.name);
+      console.log(
+        '[Incoming Call] Number is in contacts, skipping popup:',
+        contact.name,
+        phoneNumber
+      );
       setIncomingCall(null);
       setIncomingCallContact(null);
     }
@@ -672,6 +717,29 @@ export default function UserDashboard() {
     console.log('[End Call] Call ended, status:', updatedCall.status);
   };
 
+  const handleAddContact = () => {
+    if (!newContactName.trim() || !newContactPhone.trim()) {
+      alert('Please enter both name and phone number');
+      return;
+    }
+
+    const contact = addContact({
+      name: newContactName.trim(),
+      phoneNumber: newContactPhone.trim(),
+    });
+
+    setContacts((prev) => [...prev, contact]);
+    setNewContactName('');
+    setNewContactPhone('');
+    setIsAddContactDialogOpen(false);
+  };
+
+  const handleDeleteContact = (contactId: string) => {
+    const updatedContacts = contacts.filter((c) => c.id !== contactId);
+    saveContacts(updatedContacts);
+    setContacts(updatedContacts);
+  };
+
   const getStatusBadge = (status: Call['status']) => {
     switch (status) {
       case 'scam':
@@ -762,7 +830,7 @@ export default function UserDashboard() {
               Simulate Safe Call
             </Button>
             <Button
-              onClick={simulateIncomingCall}
+              onClick={() => simulateIncomingCall()}
               disabled={!!incomingCall || isMonitoring}
             >
               <Phone className="mr-2 h-4 w-4" />
@@ -892,6 +960,116 @@ export default function UserDashboard() {
             </div>
           </Card>
         </div>
+
+        <Card className="p-6 bg-card border-border mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-foreground">Contacts</h2>
+            <Dialog
+              open={isAddContactDialogOpen}
+              onOpenChange={setIsAddContactDialogOpen}
+            >
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Add Contact
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Contact</DialogTitle>
+                  <DialogDescription>
+                    Add a contact to your list. Calls from these numbers will
+                    not show the protection popup.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">
+                      Name
+                    </label>
+                    <Input
+                      placeholder="John Doe"
+                      value={newContactName}
+                      onChange={(e) => setNewContactName(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">
+                      Phone Number
+                    </label>
+                    <Input
+                      placeholder="+1 (555) 123-4567"
+                      value={newContactPhone}
+                      onChange={(e) => setNewContactPhone(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Format: +1 (555) 123-4567 or any format
+                    </p>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsAddContactDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button onClick={handleAddContact}>Add Contact</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+          {contacts.length === 0 ? (
+            <div className="text-center py-8">
+              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+              <p className="text-sm text-muted-foreground mb-4">
+                No contacts yet. Add contacts to test the call protection
+                feature.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Calls from numbers in your contacts will not show the protection
+                popup.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {contacts.map((contact) => (
+                <div
+                  key={contact.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-background border border-border"
+                >
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground">
+                      {contact.name}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {contact.phoneNumber}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => simulateIncomingCall(contact.phoneNumber)}
+                      disabled={!!incomingCall || isMonitoring}
+                      title="Test call from this contact (should NOT show popup)"
+                    >
+                      <Phone className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteContact(contact.id)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
 
         <Card className="p-6 bg-card border-border">
           <h2 className="text-lg font-semibold text-foreground mb-4">
