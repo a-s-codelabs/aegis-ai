@@ -91,6 +91,16 @@ Respond ONLY with valid JSON: {"scamScore": 75, "keywords": ["urgent", "verify"]
 If safe, respond: {"scamScore": 5, "keywords": []}`
 
     try {
+      // Check if Groq API key is available
+      if (!process.env.GROQ_API_KEY) {
+        console.warn("[Analyze] GROQ_API_KEY not set, using pattern-based scoring only")
+        return Response.json({
+          scamScore: baseScore,
+          keywords: foundPatterns.slice(0, 5),
+          note: "AI analysis unavailable - using pattern matching only",
+        })
+      }
+
       const result = await generateText({
         model: groq("llama-3.3-70b-versatile"),
         prompt: promptText,
@@ -106,15 +116,20 @@ If safe, respond: {"scamScore": 5, "keywords": []}`
         keywords: [...new Set([...foundPatterns, ...(analysis.keywords || [])])].slice(0, 5),
       })
     } catch (parseError) {
-      console.error("[v0] Error parsing AI response:", parseError)
+      console.error("[Analyze] Error parsing AI response:", parseError)
 
       return Response.json({
         scamScore: baseScore,
         keywords: foundPatterns.slice(0, 5),
+        note: "AI analysis failed - using pattern matching",
       })
     }
   } catch (error) {
-    console.error("[v0] Analysis error:", error)
-    return Response.json({ scamScore: 0, keywords: [] })
+    console.error("[Analyze] Analysis error:", error)
+    return Response.json({
+      scamScore: 0,
+      keywords: [],
+      error: error instanceof Error ? error.message : "Unknown error",
+    })
   }
 }

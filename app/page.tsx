@@ -13,7 +13,7 @@ export default function HomePage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
               <Shield className="h-6 w-6 text-primary-foreground" />
             </div>
-            <span className="text-xl font-semibold text-foreground">ScamGuard</span>
+            <span className="text-xl font-semibold text-foreground">Anti-Scam</span>
           </div>
           <nav className="flex items-center gap-6">
             <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -84,7 +84,7 @@ export default function HomePage() {
         </div>
 
         <Card className="p-8 bg-card border-border">
-          <h2 className="text-2xl font-bold text-foreground mb-6">How ScamGuard Works</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-6">How Anti-Scam Works</h2>
           <div className="space-y-4">
             <div className="flex gap-4">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold">
