@@ -68,6 +68,15 @@ interface UserSession {
 export default function UserDashboard() {
   const router = useRouter();
   const { toast } = useToast();
+
+  // NOTE: Guard against hydration mismatches by only rendering on the client
+  // If you later want true SSR here, we should instead track down the exact
+  // piece of non-deterministic UI causing the mismatch and make it stable.
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
   const [userSession, setUserSession] = useState<UserSession | null>(null);
   const [calls, setCalls] = useState<Call[]>([]);
   const [incomingCall, setIncomingCall] = useState<string | null>(null);
@@ -908,7 +917,7 @@ export default function UserDashboard() {
     }
   };
 
-  return (
+  return hasMounted ? (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
@@ -1334,6 +1343,6 @@ export default function UserDashboard() {
         </div>
       )}
     </div>
-  );
+  ) : null;
 }
 
