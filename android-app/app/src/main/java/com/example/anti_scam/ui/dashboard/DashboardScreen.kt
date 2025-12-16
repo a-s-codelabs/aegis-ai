@@ -4,11 +4,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.anti_scam.ui.call.IncomingCallScreen
 
 @Composable
 fun DashboardScreen(
@@ -16,9 +17,20 @@ fun DashboardScreen(
     onNavigateToSettings: () -> Unit,
     dashboardViewModel: DashboardViewModel = viewModel()
 ) {
+    var showIncomingCall by remember { mutableStateOf(false) }
+
+    if (showIncomingCall) {
+        IncomingCallScreen(
+            phoneNumber = "+1 (528) 204-4389",
+            onAnswer = { showIncomingCall = false },
+            onDivert = { showIncomingCall = false }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .systemBarsPadding()
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -36,6 +48,10 @@ fun DashboardScreen(
         Spacer(modifier = Modifier.height(8.dp))
         Button(onClick = onNavigateToSettings) {
             Text(text = "Settings")
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(onClick = { showIncomingCall = true }) {
+            Text(text = "Simulate Call")
         }
     }
 }
