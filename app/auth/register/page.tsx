@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -18,7 +19,12 @@ export default function RegisterPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!phoneNumber.trim() || !password.trim() || !confirmPassword.trim()) {
+    if (
+      !name.trim() ||
+      !phoneNumber.trim() ||
+      !password.trim() ||
+      !confirmPassword.trim()
+    ) {
       toast({
         title: 'Error',
         description: 'Please fill in all fields',
@@ -56,7 +62,7 @@ export default function RegisterPage() {
         body: JSON.stringify({
           phoneNumber: phoneNumber.trim(),
           password: password.trim(),
-          name: phoneNumber.trim(), // Using phone as name fallback
+          name: name.trim(),
         }),
       });
 
@@ -152,6 +158,31 @@ export default function RegisterPage() {
         {/* Form Section */}
         <div className="mb-4 flex w-full max-w-sm flex-1 flex-col justify-center space-y-6">
           <form onSubmit={handleRegister} className="space-y-6">
+            {/* Name Field */}
+            <div className="space-y-1.5">
+              <label className="ml-1 block text-xs font-bold uppercase tracking-wider text-[#c3cdd9]">
+                Name
+              </label>
+              <div className="group relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                  <span className="material-symbols-outlined text-[20px] text-slate-500 transition-colors group-focus-within:text-[#26d9bb]">
+                    person
+                  </span>
+                </div>
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  placeholder="Enter your name"
+                  className="block w-full rounded-xl border border-slate-700 bg-slate-800/40 py-3.5 pl-11 pr-4 font-medium text-slate-100 placeholder-slate-500 transition-all focus:border-[#26d9bb] focus:outline-none focus:ring-1 focus:ring-[#26d9bb] sm:text-sm"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={isLoading}
+                  required
+                />
+              </div>
+            </div>
+
             {/* Phone Number Field */}
             <div className="space-y-1.5">
               <label className="ml-1 block text-xs font-bold uppercase tracking-wider text-[#c3cdd9]">
