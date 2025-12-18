@@ -144,7 +144,7 @@ export default function RegisterPage() {
               Create Account
             </h1>
             <p className="text-sm font-medium tracking-wide text-slate-400">
-              Sign up for Anti-scam protection
+              Register for Anti-scam protection
             </p>
           </div>
         </div>
@@ -262,7 +262,7 @@ export default function RegisterPage() {
           {/* Login Link */}
           <div className="text-center">
             <Link
-              href="/login"
+              href="/auth/login"
               className="inline-block text-[15px] font-medium text-slate-400 transition-colors hover:text-white"
             >
               Already have an account?{' '}

@@ -110,15 +110,21 @@ export default function LoginPage() {
         <div className="mx-auto flex w-full max-w-sm flex-1 flex-col">
           <div className="mb-10 text-center">
             <div className="mb-6 flex items-center gap-3 justify-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-700/50 bg-gradient-to-br from-slate-800 to-slate-900 shadow-lg shadow-black/20">
-                <span
-                  className="material-symbols-outlined text-2xl text-[#26d9bb]"
-                  style={{
-                    fontVariationSettings: '"FILL" 1, "wght" 600',
-                  }}
-                >
-                  shield_lock
-                </span>
+              <div className="relative group">
+                {/* Glow effect */}
+                <div className="absolute inset-0 scale-110 animate-pulse rounded-full bg-teal-500/20 blur-2xl" />
+                {/* Icon container */}
+                <div className="relative flex h-20 w-20 items-center justify-center rounded-3xl border border-slate-700/50 bg-gradient-to-br from-slate-800 to-slate-900 shadow-xl shadow-black/40 backdrop-blur-md">
+                  <div className="pointer-events-none absolute inset-2 rounded-2xl border border-white/5" />
+                  <span
+                    className="material-symbols-outlined text-[40px] text-[#26d9bb] drop-shadow-[0_0_10px_rgba(45,212,191,0.4)]"
+                    style={{
+                      fontVariationSettings: '"FILL" 1, "wght" 600',
+                    }}
+                  >
+                    shield_lock
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -216,19 +222,19 @@ export default function LoginPage() {
             </div>
           </form>
 
-          <div className="mt-auto pb-4 pt-8 text-center">
+          <div className="pt-6 text-center">
             <p className="text-sm text-slate-400">
               Don't have an account?
               <Link
-                href="/register"
+                href="/auth/register"
                 className="ml-1 font-bold text-[#26d9bb] transition-colors hover:text-teal-300"
               >
-                Sign Up
+                Register
               </Link>
             </p>
           </div>
 
-          <div className="mt-6 flex items-center justify-center gap-2 opacity-50">
+          <div className="mt-auto pt-8 flex items-center justify-center gap-2 opacity-50">
             <span
               className="material-symbols-outlined text-sm text-[#26d9bb]"
               style={{ fontVariationSettings: '"FILL" 1, "wght" 600' }}

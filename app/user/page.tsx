@@ -190,7 +190,7 @@ export default function UserDashboard() {
       const sessionData = localStorage.getItem('userSession');
       if (!sessionData) {
         // Redirect to login if not authenticated
-        router.push('/login');
+        router.push('/auth/login');
         return;
       }
 
@@ -202,7 +202,7 @@ export default function UserDashboard() {
       } catch (error) {
         console.error('[Auth] Error parsing session:', error);
         localStorage.removeItem('userSession');
-        router.push('/login');
+        router.push('/auth/login');
       }
     }
   }, [router]);
@@ -272,7 +272,7 @@ export default function UserDashboard() {
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('userSession');
-      router.push('/login');
+      router.push('/auth/login');
     }
   };
 
