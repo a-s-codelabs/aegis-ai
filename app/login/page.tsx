@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Shield, LogIn, Phone, Lock } from 'lucide-react';
+// import { Shield, LogIn, Phone, Lock } from 'lucide-react';
+import { LogIn, Phone, Lock } from 'lucide-react';
+import { ShieldLockLogo } from '@/components/brand-logo';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -57,7 +59,7 @@ export default function LoginPage() {
             userId: data.userId,
             phoneNumber: data.phoneNumber,
             token: data.token,
-          })
+          }),
         );
       }
 
@@ -81,80 +83,125 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <Card className="w-full max-w-md p-8 bg-card border-border">
-        <div className="text-center mb-8">
-          <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-primary mx-auto mb-4">
-            <Shield className="h-8 w-8 text-primary-foreground" />
-          </div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            Welcome Back
-          </h1>
-          <p className="text-muted-foreground">
-            Sign in to access your call protection dashboard
-          </p>
-        </div>
+    <div className="relative min-h-screen overflow-hidden bg-[#020617] text-foreground">
+      {/* Background grid + glow for consistency with onboarding */}
+      <div className="pointer-events-none absolute inset-0 bg-security-grid opacity-40" />
+      <div className="pointer-events-none absolute inset-0 bg-security-radial" />
 
-        <form onSubmit={handleLogin} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="phoneNumber" className="text-foreground">
-              Phone Number
-            </Label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input
-                id="phoneNumber"
-                type="tel"
-                placeholder="+1 (555) 123-4567"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                className="pl-10"
-                disabled={isLoading}
-                required
-              />
+      <main className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 pb-10 pt-16">
+        <Card className="w-full max-w-md border border-teal-400/30 bg-gradient-to-b from-slate-900/90 via-slate-950/95 to-slate-950/95 px-6 py-8 shadow-[0_40px_120px_rgba(15,23,42,0.9)]">
+          <div className="mb-8 text-left">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="mb-6 inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-slate-700/70 bg-slate-900/70 text-slate-300 hover:bg-slate-800"
+            >
+              <span className="sr-only">Go back</span>
+              {/* simple arrow using pseudo text to avoid extra icon import */}
+              <span className="-ml-px text-lg">{'←'}</span>
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 shadow-[0_0_40px_rgba(15,23,42,1)] ring-1 ring-white/5">
+                <ShieldLockLogo size={32} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-extrabold tracking-tight text-slate-50">
+                  Welcome Back
+                </h1>
+                <p className="mt-1 text-xs text-slate-300">
+                  Please enter your phone number to sign in.
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="password" className="text-foreground">
-              Password
-            </Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="pl-10"
-                disabled={isLoading}
-                required
-              />
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div className="space-y-2">
+              <Label
+                htmlFor="phoneNumber"
+                className="text-xs font-semibold uppercase tracking-wide text-slate-300"
+              >
+                Phone Number
+              </Label>
+              <div className="relative">
+                <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="phoneNumber"
+                  type="tel"
+                  placeholder="+1 (555) 000-0000"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  className="h-11 rounded-2xl border border-slate-700/70 bg-slate-900/60 pl-10 text-sm text-slate-50 placeholder:text-slate-500 focus-visible:ring-teal-400"
+                  disabled={isLoading}
+                  required
+                />
+              </div>
             </div>
-          </div>
 
-          <Button type="submit" className="w-full h-12" disabled={isLoading}>
-            {isLoading ? (
-              'Logging in...'
-            ) : (
-              <>
-                <LogIn className="mr-2 h-5 w-5" />
-                Sign In
-              </>
-            )}
-          </Button>
-        </form>
+            <div className="space-y-2">
+              <Label
+                htmlFor="password"
+                className="text-xs font-semibold uppercase tracking-wide text-slate-300"
+              >
+                Password
+              </Label>
+              <div className="relative">
+                <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="h-11 rounded-2xl border border-slate-700/70 bg-slate-900/60 pl-10 text-sm text-slate-50 placeholder:text-slate-500 focus-visible:ring-teal-400"
+                  disabled={isLoading}
+                  required
+                />
+              </div>
+            </div>
 
-        <div className="mt-6 text-center">
-          <p className="text-sm text-muted-foreground">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-500" />
+              <button
+                type="button"
+                className="font-semibold text-teal-300 hover:text-teal-200"
+              >
+                Forgot Password?
+              </button>
+            </div>
+
+            <Button
+              type="submit"
+              className="mt-1 h-12 w-full rounded-full bg-teal-400 text-base font-semibold text-slate-950 shadow-[0_20px_60px_rgba(45,212,191,0.55)] hover:bg-teal-300"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                'Logging in...'
+              ) : (
+                <>
+                  <LogIn className="mr-2 h-5 w-5" />
+                  Log In
+                </>
+              )}
+            </Button>
+          </form>
+
+          <div className="mt-8 text-center text-sm text-slate-400">
             Don't have an account?{' '}
-            <Link href="/register" className="text-primary hover:underline font-medium">
-              Register Now
+            <Link
+              href="/register"
+              className="font-semibold text-teal-300 hover:text-teal-200"
+            >
+              Sign Up
             </Link>
+          </div>
+
+          <p className="mt-8 text-center text-[10px] font-medium uppercase tracking-[0.2em] text-slate-600">
+            Secure Log In
           </p>
-        </div>
-      </Card>
+        </Card>
+      </main>
     </div>
   );
 }
