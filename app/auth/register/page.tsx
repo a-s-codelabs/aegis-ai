@@ -89,8 +89,8 @@ export default function RegisterPage() {
         description: 'Account created successfully!',
       });
 
-      // Redirect to dashboard
-      router.push('/user');
+      // Redirect to home
+      router.push('/home');
     } catch (error) {
       toast({
         title: 'Registration Failed',

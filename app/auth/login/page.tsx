@@ -70,7 +70,7 @@ export default function LoginPage() {
       });
 
       // Redirect to dashboard
-      router.push('/user');
+      router.push('/home');
     } catch (error) {
       toast({
         title: 'Login Failed',
