@@ -158,4 +158,20 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Keep dark input backgrounds when autofilled, and ensure typed text stays light */
+  input[type='tel'],
+  input[type='password'] {
+    color: #e5edf5;
+  }
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px #020617 inset !important;
+    -webkit-text-fill-color: #e5edf5 !important;
+    caret-color: #ffffff;
+    transition: background-color 5000s ease-in-out 0s;
+  }
 }
