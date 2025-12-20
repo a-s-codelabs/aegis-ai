@@ -145,16 +145,37 @@ export default function DashboardPage() {
       Math.floor(Math.random() * 900) + 100
     }-${Math.floor(Math.random() * 9000) + 1000}`;
 
+    const riskLevel = Math.floor(Math.random() * 10); // 0-10% risk
+
     const newCall: Call = {
       id: Date.now().toString(),
       number: phoneNumber,
       timestamp: new Date(),
       duration: Math.floor(Math.random() * 300) + 60, // 1-6 minutes
       status: 'safe',
-      risk: Math.floor(Math.random() * 10), // 0-10% risk
+      risk: riskLevel,
     };
 
     setCalls((prev) => [newCall, ...prev]);
+    setActiveCall({
+      number: phoneNumber,
+      risk: riskLevel,
+      keywords: [], // No scam keywords for safe calls
+      transcript: [
+        {
+          speaker: 'Caller',
+          text: 'Hi, just confirming our dental appointment for tomorrow at 2 PM.',
+        },
+        {
+          speaker: 'AI Agent',
+          text: 'Yes, that appointment is confirmed. Is there anything else I can help you with?',
+        },
+        {
+          speaker: 'Caller',
+          text: 'No, that\'s all. Thank you for confirming!',
+        },
+      ],
+    });
   };
 
   const simulateIncomingCall = () => {
@@ -237,10 +258,17 @@ export default function DashboardPage() {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h2 className="text-white font-semibold text-base flex items-center gap-2">
-                  <span className="relative flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                  </span>
+                  {activeCall.risk < 20 ? (
+                    <span className="relative flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                    </span>
+                  ) : (
+                    <span className="relative flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                    </span>
+                  )}
                   Active Call Monitoring
                 </h2>
                 <p className="text-slate-400 text-xs mt-1">
@@ -249,7 +277,11 @@ export default function DashboardPage() {
               </div>
               <button
                 onClick={endCall}
-                className="bg-red-500 hover:bg-red-600 text-white text-xs font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1 shadow-lg shadow-red-900/30"
+                className={`${
+                  activeCall.risk < 20
+                    ? 'bg-red-500 hover:bg-red-600 shadow-red-900/30'
+                    : 'bg-red-500 hover:bg-red-600 shadow-red-900/30'
+                } text-white text-xs font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1 shadow-lg`}
               >
                 <span className="material-symbols-outlined text-sm">
                   call_end
@@ -263,28 +295,38 @@ export default function DashboardPage() {
                 <span className="text-slate-300 font-medium">
                   Scam Risk Level
                 </span>
-                <span className="text-red-500 font-bold">
+                <span
+                  className={`font-bold ${
+                    activeCall.risk < 20 ? 'text-green-500' : 'text-red-500'
+                  }`}
+                >
                   {activeCall.risk}%
                 </span>
               </div>
               <div className="w-full bg-slate-700 rounded-full h-2">
                 <div
-                  className="bg-red-500 h-2 rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]"
+                  className={`h-2 rounded-full transition-all duration-500 ${
+                    activeCall.risk < 20
+                      ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]'
+                      : 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]'
+                  }`}
                   style={{ width: `${activeCall.risk}%` }}
                 ></div>
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 mb-4">
-              {activeCall.keywords.map((keyword, idx) => (
-                <span
-                  key={idx}
-                  className="px-2 py-1 bg-red-900/30 border border-red-500/30 text-red-400 text-[10px] font-medium rounded-md uppercase tracking-wide"
-                >
-                  {keyword.toLowerCase()}
-                </span>
-              ))}
-            </div>
+            {activeCall.keywords.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {activeCall.keywords.map((keyword, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2 py-1 bg-red-900/30 border border-red-500/30 text-red-400 text-[10px] font-medium rounded-md uppercase tracking-wide"
+                  >
+                    {keyword.toLowerCase()}
+                  </span>
+                ))}
+              </div>
+            )}
 
             <div className="bg-slate-900/60 rounded-xl p-3 max-h-40 overflow-y-auto border border-slate-700/30 space-y-3 scrollbar-hide">
               {activeCall.transcript.map((entry, idx) => (
