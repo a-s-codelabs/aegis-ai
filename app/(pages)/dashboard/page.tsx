@@ -229,7 +229,8 @@ export default function DashboardPage() {
 
   return (
     <AppLayout>
-      <div className="relative flex flex-1 flex-col z-10 h-full overflow-y-auto scrollbar-hide">
+      {/* Scrollable Content Area */}
+      <div className="relative flex flex-1 flex-col z-10 h-full overflow-y-auto scrollbar-hide pb-24">
         {/* Active Call Monitoring Card */}
         {activeCall && (
           <div className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl p-4 mb-6 shadow-lg shadow-black/20 backdrop-blur-sm">
@@ -443,47 +444,49 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Simulation Buttons - Fixed at Bottom */}
-      <div className="fixed bottom-20 left-0 right-0 z-30 px-4 pb-2">
-        <div className="max-w-lg mx-auto grid grid-cols-3 gap-2">
-          <button
-            onClick={simulateScamCall}
-            disabled={!!activeCall}
-            className="flex flex-col items-center justify-center gap-1.5 bg-slate-800/90 border border-red-500/30 rounded-xl p-3 hover:bg-slate-700/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-md shadow-lg"
-          >
-            <span className="material-symbols-outlined text-red-500 text-xl">
-              bug_report
-            </span>
-            <span className="text-[10px] font-semibold text-white">
-              Simulate Scam
-            </span>
-          </button>
+      {/* Simulation Buttons - Separate Fixed Container at Bottom */}
+      <div className="fixed bottom-20 left-0 right-0 z-40 bg-[#0B1121]/95 backdrop-blur-md border-t border-slate-800/50">
+        <div className="max-w-lg mx-auto px-4 py-3">
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={simulateScamCall}
+              disabled={!!activeCall}
+              className="flex flex-col items-center justify-center gap-1.5 bg-slate-800/90 border border-red-500/30 rounded-xl p-3 hover:bg-slate-700/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+            >
+              <span className="material-symbols-outlined text-red-500 text-xl">
+                bug_report
+              </span>
+              <span className="text-[10px] font-semibold text-white">
+                Simulate Scam
+              </span>
+            </button>
 
-          <button
-            onClick={simulateSafeCall}
-            disabled={!!activeCall}
-            className="flex flex-col items-center justify-center gap-1.5 bg-slate-800/90 border border-green-500/30 rounded-xl p-3 hover:bg-slate-700/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-md shadow-lg"
-          >
-            <span className="material-symbols-outlined text-green-500 text-xl">
-              security
-            </span>
-            <span className="text-[10px] font-semibold text-white">
-              Simulate Safe
-            </span>
-          </button>
+            <button
+              onClick={simulateSafeCall}
+              disabled={!!activeCall}
+              className="flex flex-col items-center justify-center gap-1.5 bg-slate-800/90 border border-green-500/30 rounded-xl p-3 hover:bg-slate-700/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+            >
+              <span className="material-symbols-outlined text-green-500 text-xl">
+                security
+              </span>
+              <span className="text-[10px] font-semibold text-white">
+                Simulate Safe
+              </span>
+            </button>
 
-          <button
-            onClick={simulateIncomingCall}
-            disabled={!!activeCall}
-            className="flex flex-col items-center justify-center gap-1.5 bg-slate-800/90 border border-[#26d9bb]/30 rounded-xl p-3 hover:bg-slate-700/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-md shadow-lg"
-          >
-            <span className="material-symbols-outlined text-[#26d9bb] text-xl">
-              ring_volume
-            </span>
-            <span className="text-[10px] font-semibold text-white">
-              Incoming Call
-            </span>
-          </button>
+            <button
+              onClick={simulateIncomingCall}
+              disabled={!!activeCall}
+              className="flex flex-col items-center justify-center gap-1.5 bg-slate-800/90 border border-[#26d9bb]/30 rounded-xl p-3 hover:bg-slate-700/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+            >
+              <span className="material-symbols-outlined text-[#26d9bb] text-xl">
+                ring_volume
+              </span>
+              <span className="text-[10px] font-semibold text-white">
+                Incoming Call
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </AppLayout>
