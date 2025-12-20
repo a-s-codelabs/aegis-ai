@@ -7,6 +7,7 @@ import { BottomNavbar } from './bottom-navbar';
 interface AppLayoutProps {
   children: ReactNode;
   hideTopNavbar?: boolean;
+  hideBottomNavbar?: boolean;
   navbarTitle?: string;
   navbarIcon?: string;
 }
@@ -14,6 +15,7 @@ interface AppLayoutProps {
 export function AppLayout({
   children,
   hideTopNavbar = false,
+  hideBottomNavbar = false,
   navbarTitle,
   navbarIcon,
 }: AppLayoutProps) {
@@ -28,9 +30,7 @@ export function AppLayout({
       />
 
       {/* Top Navbar */}
-      {!hideTopNavbar && (
-        <TopNavbar title={navbarTitle} icon={navbarIcon} />
-      )}
+      {!hideTopNavbar && <TopNavbar title={navbarTitle} icon={navbarIcon} />}
 
       {/* Main Content */}
       <main className="relative z-10 flex-1 px-4 pb-26 pt-4 max-w-lg mx-auto w-full">
@@ -38,7 +38,7 @@ export function AppLayout({
       </main>
 
       {/* Bottom Navbar */}
-      <BottomNavbar />
+      {!hideBottomNavbar && <BottomNavbar />}
     </div>
   );
 }
