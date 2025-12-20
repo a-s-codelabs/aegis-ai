@@ -7,9 +7,16 @@ import { BottomNavbar } from './bottom-navbar';
 interface AppLayoutProps {
   children: ReactNode;
   hideTopNavbar?: boolean;
+  navbarTitle?: string;
+  navbarIcon?: string;
 }
 
-export function AppLayout({ children, hideTopNavbar = false }: AppLayoutProps) {
+export function AppLayout({
+  children,
+  hideTopNavbar = false,
+  navbarTitle,
+  navbarIcon,
+}: AppLayoutProps) {
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#0B1121] text-gray-100">
       {/* Background layers - matching register page pattern */}
@@ -21,10 +28,12 @@ export function AppLayout({ children, hideTopNavbar = false }: AppLayoutProps) {
       />
 
       {/* Top Navbar */}
-      {!hideTopNavbar && <TopNavbar />}
+      {!hideTopNavbar && (
+        <TopNavbar title={navbarTitle} icon={navbarIcon} />
+      )}
 
       {/* Main Content */}
-      <main className="relative z-10 flex-1 px-4 pb-28 pt-6 max-w-lg mx-auto w-full">
+      <main className="relative z-10 flex-1 px-4 pb-26 pt-4 max-w-lg mx-auto w-full">
         {children}
       </main>
 

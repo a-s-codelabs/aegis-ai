@@ -10,7 +10,12 @@ interface UserSession {
   name?: string;
 }
 
-export function TopNavbar() {
+interface TopNavbarProps {
+  title?: string;
+  icon?: string;
+}
+
+export function TopNavbar({ title = 'Anti-Scam', icon = 'shield' }: TopNavbarProps) {
   const router = useRouter();
   const [userSession, setUserSession] = useState<UserSession | null>(null);
   const [userInitials, setUserInitials] = useState('U');
@@ -51,11 +56,11 @@ export function TopNavbar() {
             className="material-symbols-outlined text-[#26d9bb] text-xl"
             style={{ fontVariationSettings: '"FILL" 1, "wght" 600' }}
           >
-            shield
+            {icon}
           </span>
         </div>
         <h1 className="text-xl font-bold tracking-tight text-white">
-          Anti-Scam
+          {title}
         </h1>
       </div>
       <div className="relative">

@@ -3,7 +3,9 @@
 import { AppLayout } from '@/components/layout/app-layout';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+
+// Constants
+const ACCENT_COLOR = '#26d9bb';
 
 interface UserSession {
   userId: string;
@@ -32,6 +34,11 @@ interface Transcript {
     description?: string;
     keywords?: string[];
   };
+}
+
+interface ListItem {
+  number: string;
+  time: string;
 }
 
 export default function AdminDashboardPage() {
@@ -151,53 +158,93 @@ export default function AdminDashboardPage() {
     },
   ];
 
+  // Helper functions (DRY)
   const getReasonBadgeClass = (type: DivertedCall['reasonType']) => {
-    switch (type) {
-      case 'high':
-        return 'bg-red-900/40 text-red-300';
-      case 'robocall':
-        return 'bg-yellow-900/40 text-yellow-300';
-      case 'ai':
-        return 'bg-blue-900/40 text-blue-300';
-      default:
-        return 'bg-gray-900/40 text-gray-300';
-    }
+    const badgeClasses = {
+      high: 'bg-red-900/40 text-red-300',
+      robocall: 'bg-yellow-900/40 text-yellow-300',
+      ai: 'bg-blue-900/40 text-blue-300',
+    };
+    return badgeClasses[type] || 'bg-gray-900/40 text-gray-300';
   };
 
   const getTranscriptIcon = (type: Transcript['type']) => {
-    switch (type) {
-      case 'ongoing':
-        return null; // Uses red dot
-      case 'scam':
-        return 'history';
-      case 'flagged':
-        return 'warning';
-      case 'safe':
-        return 'check_circle';
-      default:
-        return 'description';
-    }
+    const icons = {
+      ongoing: null,
+      scam: 'history',
+      flagged: 'warning',
+      safe: 'check_circle',
+    };
+    return icons[type] || 'description';
   };
 
   const getTranscriptIconColor = (type: Transcript['type']) => {
-    switch (type) {
-      case 'scam':
-        return 'text-gray-500';
-      case 'flagged':
-        return 'text-yellow-500';
-      case 'safe':
-        return 'text-green-500';
-      default:
-        return 'text-gray-500';
-    }
+    const colors: Record<Transcript['type'], string> = {
+      ongoing: 'text-gray-500',
+      scam: 'text-gray-500',
+      flagged: 'text-yellow-500',
+      safe: 'text-green-500',
+    };
+    return colors[type] || 'text-gray-500';
   };
+
+  // Reusable card component for Blocklist/Whitelist
+  const ListCard = ({
+    title,
+    icon,
+    iconColor,
+    items,
+    total,
+    totalLabel,
+  }: {
+    title: string;
+    icon: string;
+    iconColor: string;
+    items: ListItem[];
+    total: string;
+    totalLabel: string;
+  }) => (
+    <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4 shadow-md flex flex-col h-full">
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-sm font-semibold text-white flex items-center gap-1">
+          <span className={`material-symbols-outlined ${iconColor} text-lg`}>
+            {icon}
+          </span>
+          {title}
+        </h3>
+        <button
+          className="text-[10px] transition-colors hover:opacity-80"
+          style={{ color: ACCENT_COLOR }}
+        >
+          View All
+        </button>
+      </div>
+      <div className="space-y-2 grow">
+        {items.map((item, idx) => (
+          <div key={idx} className="flex justify-between items-center">
+            <span className="text-xs font-mono text-gray-300">
+              {item.number}
+            </span>
+            <span className="text-[10px] text-gray-500">{item.time}</span>
+          </div>
+        ))}
+        <div className="mt-auto pt-2">
+          <div className="text-2xl font-bold text-white">{total}</div>
+          <div className="text-[10px] text-gray-400">{totalLabel}</div>
+        </div>
+      </div>
+    </div>
+  );
 
   if (isLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#26d9bb] mx-auto mb-4"></div>
+            <div
+              className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-4"
+              style={{ borderColor: ACCENT_COLOR }}
+            ></div>
             <p className="text-gray-400 text-sm">Loading admin dashboard...</p>
           </div>
         </div>
@@ -206,110 +253,46 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <AppLayout>
+    <AppLayout navbarTitle="Admin Dashboard" navbarIcon="shield_lock">
       <div className="relative flex flex-1 flex-col overflow-y-auto no-scrollbar space-y-5 z-10">
-        {/* Header Section */}
-        <div className="sticky top-0 z-50 bg-[#0B1121]/90 backdrop-blur-md border-b border-gray-800 px-4 py-3 -mx-4 -mt-6 mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/dashboard"
-              className="flex items-center justify-center p-1 -ml-1 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-            >
-              <span className="material-symbols-outlined text-2xl">arrow_back</span>
-            </Link>
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[#26d9bb] text-2xl">shield_lock</span>
-              <h1 className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">
-                Admin Dashboard
-              </h1>
-            </div>
-          </div>
-          <div className="relative">
-            {userSession ? (
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-100 to-amber-200 border-2 border-gray-700 object-cover flex items-center justify-center">
-                <span className="text-sm font-bold text-amber-900">
-                  {userSession.name?.[0]?.toUpperCase() || 'A'}
-                </span>
-              </div>
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-gray-700 border-2 border-gray-600"></div>
-            )}
-            <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#26d9bb] rounded-full border-2 border-[#0B1121]"></div>
-          </div>
-        </div>
-
         {/* Detailed Insights Section */}
         <div>
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white">Detailed Insights</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <h2 className="text-xl font-bold text-white">Detailed Insights</h2>
+          <p className="text-sm text-gray-400">
             System-wide data and call monitoring.
           </p>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           {/* Blocklist Card */}
-          <div className="bg-white dark:bg-[#151A23] border border-gray-200 dark:border-[#272E3B] rounded-xl p-4 shadow-sm flex flex-col h-full">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-1">
-                <span className="material-symbols-outlined text-red-500 text-lg">block</span>
-                Blocklist
-              </h3>
-              <button className="text-[10px] text-[#26d9bb] hover:text-white transition-colors">
-                View All
-              </button>
-            </div>
-            <div className="space-y-2 flex-grow">
-              {blocklist.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex justify-between items-center bg-[#0B0E14]/50 p-2 rounded border border-[#272E3B]/50"
-                >
-                  <span className="text-xs font-mono text-gray-300">{item.number}</span>
-                  <span className="text-[10px] text-gray-500">{item.time}</span>
-                </div>
-              ))}
-              <div className="mt-auto pt-2">
-                <div className="text-2xl font-bold text-gray-900 dark:text-white">1,294</div>
-                <div className="text-[10px] text-gray-500 dark:text-gray-400">Total Blocked</div>
-              </div>
-            </div>
-          </div>
+          <ListCard
+            title="Blocklist"
+            icon="block"
+            iconColor="text-red-500"
+            items={blocklist}
+            total="1,294"
+            totalLabel="Total Blocked"
+          />
 
           {/* Whitelist Card */}
-          <div className="bg-white dark:bg-[#151A23] border border-gray-200 dark:border-[#272E3B] rounded-xl p-4 shadow-sm flex flex-col h-full">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-1">
-                <span className="material-symbols-outlined text-green-500 text-lg">verified</span>
-                Whitelist
-              </h3>
-              <button className="text-[10px] text-[#26d9bb] hover:text-white transition-colors">
-                View All
-              </button>
-            </div>
-            <div className="space-y-2 flex-grow">
-              {whitelist.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex justify-between items-center bg-[#0B0E14]/50 p-2 rounded border border-[#272E3B]/50"
-                >
-                  <span className="text-xs font-mono text-gray-300">{item.number}</span>
-                  <span className="text-[10px] text-gray-500">{item.time}</span>
-                </div>
-              ))}
-              <div className="mt-auto pt-2">
-                <div className="text-2xl font-bold text-gray-900 dark:text-white">842</div>
-                <div className="text-[10px] text-gray-500 dark:text-gray-400">Total Trusted</div>
-              </div>
-            </div>
-          </div>
+          <ListCard
+            title="Whitelist"
+            icon="verified"
+            iconColor="text-green-500"
+            items={whitelist}
+            total="842"
+            totalLabel="Total Trusted"
+          />
         </div>
 
         {/* Diverted Calls Section */}
-        <div className="bg-white dark:bg-[#151A23] border border-gray-200 dark:border-[#272E3B] rounded-xl p-5 shadow-sm">
+        <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5 shadow-md">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="font-semibold text-gray-800 dark:text-white flex items-center gap-2">
-              <span className="material-symbols-outlined text-yellow-500">call_split</span>
-              Diverted Calls
+            <h3 className="font-semibold text-white flex items-center gap-2">
+              <span className="material-symbols-outlined text-yellow-500">
+                call_split
+              </span>
+              <span>Diverted Calls</span>
             </h3>
             <div className="flex items-center gap-2 text-xs text-gray-400">
               <span>
@@ -331,7 +314,9 @@ export default function AdminDashboardPage() {
                 {divertedCalls.map((call) => (
                   <tr key={call.id}>
                     <td className="py-3 text-gray-400">{call.time}</td>
-                    <td className="py-3 font-mono text-gray-300">{call.caller}</td>
+                    <td className="py-3 font-mono text-gray-300">
+                      {call.caller}
+                    </td>
                     <td className="py-3">
                       <span
                         className={`${getReasonBadgeClass(
@@ -342,110 +327,162 @@ export default function AdminDashboardPage() {
                       </span>
                     </td>
                     <td className="py-3 text-right">
-                      <span className="material-symbols-outlined text-gray-500 text-sm">info</span>
+                      <span className="material-symbols-outlined text-gray-500 text-sm">
+                        info
+                      </span>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <button className="w-full mt-2 text-xs text-center text-gray-500 hover:text-[#26d9bb] transition-colors py-1">
+          <button
+            className="w-full mt-2 text-xs text-center text-gray-500 transition-colors py-1 hover:opacity-80"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = ACCENT_COLOR;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = '';
+            }}
+          >
             View All Diverted Logs
           </button>
         </div>
 
         {/* Transcribed Content Section */}
-        <div className="bg-gradient-to-br from-[#151A23] to-[#0B0E14] border border-gray-200 dark:border-[#272E3B] rounded-xl p-5 shadow-sm relative overflow-hidden flex flex-col flex-grow min-h-[420px]">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[#26d9bb]/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
-          <div className="flex justify-between items-center mb-4 relative z-10">
-            <h3 className="font-semibold text-gray-800 dark:text-white flex items-center gap-2">
-              <span className="material-symbols-outlined text-[#26d9bb]">record_voice_over</span>
+        <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-3 flex flex-col grow min-h-[420px] shadow-md">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-semibold text-white flex items-center gap-2">
+              <span
+                className="material-symbols-outlined"
+                style={{ color: ACCENT_COLOR }}
+              >
+                record_voice_over
+              </span>
               Transcribed Content
             </h3>
             <div className="flex items-center gap-2">
               <span className="text-[10px] text-gray-500">Live & Recent</span>
-              <span className="bg-[#26d9bb]/10 text-[#26d9bb] text-xs px-2 py-1 rounded-full border border-[#26d9bb]/20">
+              <span
+                className="text-xs px-2 py-1 rounded-full border backdrop-blur-sm"
+                style={{
+                  backgroundColor: `${ACCENT_COLOR}1A`,
+                  color: ACCENT_COLOR,
+                  borderColor: `${ACCENT_COLOR}33`,
+                }}
+              >
                 Active
               </span>
             </div>
           </div>
-          <div className="space-y-3 relative z-10 flex-grow overflow-y-auto no-scrollbar">
-            {transcripts.map((transcript) => (
-              <div
-                key={transcript.id}
-                className="bg-[#0B0E14]/80 backdrop-blur-sm border border-[#272E3B] p-3 rounded-lg hover:border-[#26d9bb]/50 transition-colors group cursor-pointer"
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex items-center gap-2">
-                    {transcript.type === 'ongoing' ? (
-                      <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-                    ) : (
-                      <span
-                        className={`material-symbols-outlined ${getTranscriptIconColor(
-                          transcript.type
-                        )} text-sm`}
-                      >
-                        {getTranscriptIcon(transcript.type)}
+          <div className="space-y-3 grow overflow-y-auto no-scrollbar">
+            {transcripts.map((transcript) => {
+              const icon = getTranscriptIcon(transcript.type);
+              const iconColor = getTranscriptIconColor(transcript.type);
+              const actionLabels = {
+                ongoing: 'Monitor Live',
+                scam: 'Full Transcript',
+                flagged: 'Analysis Report',
+                safe: 'Log',
+              };
+              const actionIcons = {
+                ongoing: 'open_in_new',
+                scam: 'arrow_forward',
+                flagged: 'analytics',
+                safe: 'description',
+              };
+
+              return (
+                <div
+                  key={transcript.id}
+                  className="bg-slate-800/40 border border-slate-700/50 p-3 rounded-lg transition-all group cursor-pointer hover:bg-slate-800/60"
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex items-center gap-2">
+                      {transcript.type === 'ongoing' ? (
+                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                      ) : (
+                        icon && (
+                          <span
+                            className={`material-symbols-outlined ${iconColor} text-sm`}
+                          >
+                            {icon}
+                          </span>
+                        )
+                      )}
+                      <span className="text-xs font-bold text-white">
+                        {transcript.title}
                       </span>
-                    )}
-                    <span className="text-xs font-bold text-white">{transcript.title}</span>
+                    </div>
+                    <span className="text-[10px] text-gray-400">
+                      {transcript.time}
+                    </span>
                   </div>
-                  <span className="text-[10px] text-gray-400">{transcript.time}</span>
-                </div>
-                <div className="space-y-2 mb-2">
-                  {transcript.content.speaker && transcript.content.text && (
-                    <div className="flex gap-2">
-                      <span className="text-[10px] font-bold text-[#26d9bb] w-8 shrink-0">
-                        {transcript.content.speaker}:
-                      </span>
-                      <p className="text-xs text-gray-300 italic">{transcript.content.text}</p>
-                    </div>
-                  )}
-                  {transcript.content.description && (
-                    <p className="text-xs text-gray-400 line-clamp-2">
-                      {transcript.content.description}
-                    </p>
-                  )}
-                  {transcript.content.keywords && transcript.content.keywords.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {transcript.content.keywords.map((keyword, idx) => (
+                  <div className="space-y-2 mb-2">
+                    {transcript.content.speaker && transcript.content.text && (
+                      <div className="flex gap-2">
                         <span
-                          key={idx}
-                          className="text-[9px] bg-red-900/30 text-red-300 px-1.5 rounded border border-red-900/50"
+                          className="text-[10px] font-bold w-8 shrink-0"
+                          style={{ color: ACCENT_COLOR }}
                         >
-                          "{keyword}"
+                          {transcript.content.speaker}:
                         </span>
-                      ))}
-                    </div>
-                  )}
+                        <p className="text-xs text-gray-300 italic">
+                          {transcript.content.text}
+                        </p>
+                      </div>
+                    )}
+                    {transcript.content.description && (
+                      <p className="text-xs text-gray-400 line-clamp-2">
+                        {transcript.content.description}
+                      </p>
+                    )}
+                    {transcript.content.keywords &&
+                      transcript.content.keywords.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {transcript.content.keywords.map((keyword, idx) => (
+                            <span
+                              key={idx}
+                              className="text-[9px] bg-red-900/30 text-red-300 px-1.5 rounded border border-red-900/50"
+                            >
+                              "{keyword}"
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                  </div>
+                  <div className="flex justify-end">
+                    <span
+                      className="text-[10px] group-hover:underline flex items-center gap-1"
+                      style={{ color: ACCENT_COLOR }}
+                    >
+                      {actionLabels[transcript.type]}{' '}
+                      {actionIcons[transcript.type] && (
+                        <span className="material-symbols-outlined text-[10px]">
+                          {actionIcons[transcript.type]}
+                        </span>
+                      )}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-end">
-                  <span className="text-[10px] text-[#26d9bb] group-hover:underline flex items-center gap-1">
-                    {transcript.type === 'ongoing' && 'Monitor Live '}
-                    {transcript.type === 'scam' && 'Full Transcript '}
-                    {transcript.type === 'flagged' && 'Analysis Report '}
-                    {transcript.type === 'safe' && 'Log '}
-                    {transcript.type === 'ongoing' && (
-                      <span className="material-symbols-outlined text-[10px]">open_in_new</span>
-                    )}
-                    {transcript.type === 'scam' && (
-                      <span className="material-symbols-outlined text-[10px]">arrow_forward</span>
-                    )}
-                    {transcript.type === 'flagged' && (
-                      <span className="material-symbols-outlined text-[10px]">analytics</span>
-                    )}
-                    {transcript.type === 'safe' && (
-                      <span className="material-symbols-outlined text-[10px]">description</span>
-                    )}
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
-          <div className="mt-auto pt-2 text-center relative z-10">
-            <button className="text-xs text-[#26d9bb] hover:text-white transition-colors flex items-center justify-center gap-1 w-full py-1">
+          <div className="mt-auto pt-2 text-center">
+            <button
+              className="text-xs transition-colors flex items-center justify-center gap-1 w-full py-1"
+              style={{ color: ACCENT_COLOR }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#ffffff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = ACCENT_COLOR;
+              }}
+            >
               View All 24h Transcripts{' '}
-              <span className="material-symbols-outlined text-xs">expand_more</span>
+              <span className="material-symbols-outlined text-xs">
+                expand_more
+              </span>
             </button>
           </div>
         </div>
