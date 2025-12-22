@@ -137,28 +137,28 @@ export default function HomePage() {
 
         {/* Tabs Navigation */}
         <Tabs defaultValue="recent-calls" className="w-full">
-          <TabsList className="w-full justify-start bg-transparent p-0 h-auto border-b border-gray-800/50 rounded-none">
+          <TabsList className="w-full justify-start bg-transparent p-0 h-auto border-b border-gray-800/50 rounded-none overflow-x-auto scrollbar-hide flex-nowrap">
             <TabsTrigger
               value="recent-calls"
-              className="data-[state=active]:bg-transparent data-[state=active]:text-[#26d9bb] data-[state=active]:border-b-2 data-[state=active]:border-[#26d9bb] text-gray-400 border-b-2 border-transparent rounded-none px-4 py-2 text-sm font-medium transition-all"
+              className="data-[state=active]:bg-transparent data-[state=active]:text-[#26d9bb] data-[state=active]:border-b-2 data-[state=active]:border-[#26d9bb] text-gray-400 border-b-2 border-transparent rounded-none px-3 py-2 sm:px-4 md:px-6 text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex-shrink-0"
             >
               Recent Calls
             </TabsTrigger>
             <TabsTrigger
               value="block-list"
-              className="data-[state=active]:bg-transparent data-[state=active]:text-[#26d9bb] data-[state=active]:border-b-2 data-[state=active]:border-[#26d9bb] text-gray-400 border-b-2 border-transparent rounded-none px-4 py-2 text-sm font-medium transition-all"
+              className="data-[state=active]:bg-transparent data-[state=active]:text-[#26d9bb] data-[state=active]:border-b-2 data-[state=active]:border-[#26d9bb] text-gray-400 border-b-2 border-transparent rounded-none px-3 py-2 sm:px-4 md:px-6 text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex-shrink-0"
             >
               Block List
             </TabsTrigger>
             <TabsTrigger
               value="whitelist"
-              className="data-[state=active]:bg-transparent data-[state=active]:text-[#26d9bb] data-[state=active]:border-b-2 data-[state=active]:border-[#26d9bb] text-gray-400 border-b-2 border-transparent rounded-none px-4 py-2 text-sm font-medium transition-all"
+              className="data-[state=active]:bg-transparent data-[state=active]:text-[#26d9bb] data-[state=active]:border-b-2 data-[state=active]:border-[#26d9bb] text-gray-400 border-b-2 border-transparent rounded-none px-3 py-2 sm:px-4 md:px-6 text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex-shrink-0"
             >
               Whitelist
             </TabsTrigger>
             <TabsTrigger
               value="contacts"
-              className="data-[state=active]:bg-transparent data-[state=active]:text-[#26d9bb] data-[state=active]:border-b-2 data-[state=active]:border-[#26d9bb] text-gray-400 border-b-2 border-transparent rounded-none px-4 py-2 text-sm font-medium transition-all"
+              className="data-[state=active]:bg-transparent data-[state=active]:text-[#26d9bb] data-[state=active]:border-b-2 data-[state=active]:border-[#26d9bb] text-gray-400 border-b-2 border-transparent rounded-none px-3 py-2 sm:px-4 md:px-6 text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex-shrink-0"
             >
               Contacts
             </TabsTrigger>

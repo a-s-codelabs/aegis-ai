@@ -84,12 +84,12 @@ export default function SettingsPage() {
             </div>
             {/* Edit Icon Overlay */}
             <button
-              className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-[#26d9bb] flex items-center justify-center border-2 border-[#0B1121] hover:bg-[#20c4a8] transition-colors"
+              className="absolute -bottom-1 -right-1 w-9 h-9 rounded-full bg-[#26d9bb] flex items-center justify-center border-2 border-[#0B1121] hover:bg-[#20c4a8] transition-colors shadow-lg z-10"
               aria-label="Edit profile"
             >
               <span
-                className="material-symbols-outlined text-white text-sm"
-                style={{ fontVariationSettings: '"FILL" 1, "wght" 400' }}
+                className="material-symbols-outlined text-white text-lg leading-none"
+                style={{ fontVariationSettings: '"FILL" 0, "wght" 500' }}
               >
                 edit
               </span>
