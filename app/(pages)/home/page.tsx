@@ -33,9 +33,9 @@ interface Contact {
   color: string;
 }
 
-export default function HomePage() {
-  const router = useRouter();
-  const [recentCalls, setRecentCalls] = useState<RecentCall[]>([
+// Home Content Component (to be rendered inside iPhone)
+function HomeContent() {
+  const [recentCalls] = useState<RecentCall[]>([
     {
       id: '1',
       number: '+1 (415) 555-0192',
@@ -57,7 +57,7 @@ export default function HomePage() {
     },
   ]);
 
-  const [blockedNumbers, setBlockedNumbers] = useState<BlockedNumber[]>([
+  const [blockedNumbers] = useState<BlockedNumber[]>([
     {
       id: '1',
       number: '+1 (724) 719-4042',
@@ -72,13 +72,13 @@ export default function HomePage() {
     },
   ]);
 
-  const [whitelistItems, setWhitelistItems] = useState<WhitelistItem[]>([
+  const [whitelistItems] = useState<WhitelistItem[]>([
     { id: '1', name: 'Bank' },
     { id: '2', name: 'Office' },
     { id: '3', name: 'Doctor' },
   ]);
 
-  const [contacts, setContacts] = useState<Contact[]>([
+  const [contacts] = useState<Contact[]>([
     {
       id: '1',
       name: 'John Doe',
@@ -95,16 +95,6 @@ export default function HomePage() {
     },
   ]);
 
-  useEffect(() => {
-    // Check authentication
-    if (typeof window !== 'undefined') {
-      const sessionData = localStorage.getItem('userSession');
-      if (!sessionData) {
-        router.push('/auth/login');
-      }
-    }
-  }, [router]);
-
   const getContactColor = (color: string) => {
     switch (color) {
       case 'purple':
@@ -117,7 +107,7 @@ export default function HomePage() {
   };
 
   return (
-    <AppLayout>
+    <AppLayout fullWidth>
       <div className="space-y-6">
         {/* Hero Section */}
         <section className="text-center">
@@ -359,6 +349,88 @@ export default function HomePage() {
         </Tabs>
       </div>
     </AppLayout>
+  );
+}
+
+// Main Home Page with Split Layout
+export default function HomePage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Check authentication
+    if (typeof window !== 'undefined') {
+      const sessionData = localStorage.getItem('userSession');
+      if (!sessionData) {
+        router.push('/auth/login');
+      }
+    }
+  }, [router]);
+
+  return (
+    <div className="relative flex min-h-screen w-full overflow-hidden bg-[#020617] text-foreground">
+      {/* Grid pattern background */}
+      <div className="pointer-events-none absolute inset-0 h-full w-full bg-grid-pattern opacity-100" />
+
+      {/* Central radial glow */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(38,217,187,0.1)_0,_rgba(18,32,30,0.8)_55%,_#12201e_100%)]" />
+
+      {/* Split Layout Container */}
+      <div className="relative z-10 flex w-full flex-col lg:flex-row items-center justify-center min-h-screen">
+        {/* Left Side - Instructions */}
+        <div className="flex flex-col items-center justify-center px-6 py-12 lg:py-0 lg:px-20 lg:basis-[60%]">
+          <div className="w-full max-w-3xl space-y-6 text-left">
+            <h1 className="text-5xl lg:text-6xl font-bold leading-tight tracking-tight text-[#26d9bb]">
+              Anti-scam Home
+            </h1>
+            <p className="text-lg lg:text-xl text-slate-400 leading-relaxed">
+              Welcome to your Anti-scam dashboard. Here you can manage your call protection settings and monitor suspicious activity.
+            </p>
+            <div className="space-y-4 text-base lg:text-lg text-slate-300">
+              <p>
+                <strong className="text-[#26d9bb]">Recent Calls:</strong> View your call history and identify potential spam calls.
+              </p>
+              <p>
+                <strong className="text-[#26d9bb]">Block List:</strong> Manage numbers that have been flagged as high-risk scams.
+              </p>
+              <p>
+                <strong className="text-[#26d9bb]">Whitelist:</strong> Add trusted contacts that should never be blocked.
+              </p>
+              <p>
+                <strong className="text-[#26d9bb]">Contacts:</strong> View and manage your protected contacts list.
+              </p>
+            </div>
+            <p className="text-sm lg:text-base text-slate-400 italic">
+              Use the navigation tabs to switch between different sections. All features are accessible through the top and bottom navigation bars.
+            </p>
+          </div>
+        </div>
+
+        {/* Right Side - iPhone Mockup with Home Page Content */}
+        <div className="flex items-center justify-center px-4 sm:px-6 py-12 lg:py-0 lg:basis-[40%]">
+          <div className="relative flex items-center justify-center">
+            {/* iPhone Frame */}
+            <div className="relative w-[320px] sm:w-[360px] md:w-[375px] h-[680px] sm:h-[760px] md:h-[812px] bg-gradient-to-b from-slate-900 to-black rounded-[3rem] p-2 shadow-2xl border-[3px] border-slate-800">
+              {/* Notch/Dynamic Island */}
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-32 h-8 bg-black rounded-full z-30" />
+              
+              {/* Screen with Home Page Content */}
+              <div className="relative w-full h-full bg-[#0B1121] rounded-[2.5rem] overflow-hidden">
+                {/* iPhone Screen Content Container */}
+                <div className="absolute inset-0 w-full h-full overflow-hidden">
+                  {/* Scale down slightly so full width (including nav & tabs) is visible */}
+                  <div className="w-full h-full origin-top scale-[0.92]">
+                    <HomeContent />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom fade */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#12201e] to-transparent" />
+    </div>
   );
 }
 

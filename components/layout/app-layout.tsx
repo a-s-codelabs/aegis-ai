@@ -10,6 +10,8 @@ interface AppLayoutProps {
   hideBottomNavbar?: boolean;
   navbarTitle?: string;
   navbarIcon?: string;
+  // When true, use full width (useful for embedded/mobile mock views)
+  fullWidth?: boolean;
 }
 
 export function AppLayout({
@@ -18,7 +20,12 @@ export function AppLayout({
   hideBottomNavbar = false,
   navbarTitle,
   navbarIcon,
+  fullWidth = false,
 }: AppLayoutProps) {
+  const mainWidthClasses = fullWidth
+    ? 'max-w-full w-full'
+    : 'max-w-lg mx-auto w-full';
+
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#0B1121] text-gray-100">
       {/* Background layers - matching register page pattern */}
@@ -33,7 +40,7 @@ export function AppLayout({
       {!hideTopNavbar && <TopNavbar title={navbarTitle} icon={navbarIcon} />}
 
       {/* Main Content */}
-      <main className={`relative z-10 flex-1 px-4 pb-26 pt-4 max-w-lg mx-auto w-full ${!hideTopNavbar ? 'pt-20' : ''}`}>
+      <main className={`relative z-10 flex-1 px-4 pb-20 pt-4 ${mainWidthClasses} ${!hideTopNavbar ? 'pt-20' : ''}`}>
         {children}
       </main>
 
