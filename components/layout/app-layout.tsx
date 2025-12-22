@@ -33,7 +33,7 @@ export function AppLayout({
       {!hideTopNavbar && <TopNavbar title={navbarTitle} icon={navbarIcon} />}
 
       {/* Main Content */}
-      <main className="relative z-10 flex-1 px-4 pb-26 pt-4 max-w-lg mx-auto w-full">
+      <main className={`relative z-10 flex-1 px-4 pb-26 pt-4 max-w-lg mx-auto w-full ${!hideTopNavbar ? 'pt-20' : ''}`}>
         {children}
       </main>
 

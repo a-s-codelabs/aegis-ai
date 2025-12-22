@@ -49,33 +49,36 @@ export function TopNavbar({ title = 'Anti-Scam', icon = 'shield' }: TopNavbarPro
   }, []);
 
   return (
-    <header className="sticky top-0 z-50 bg-[#0B1121]/90 backdrop-blur-md border-b border-gray-800 px-5 py-4 flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-[#26d9bb]/20 rounded-full flex items-center justify-center">
-          <span
-            className="material-symbols-outlined text-[#26d9bb] text-xl"
-            style={{ fontVariationSettings: '"FILL" 1, "wght" 600' }}
-          >
-            {icon}
-          </span>
-        </div>
-        <h1 className="text-xl font-bold tracking-tight text-white">
-          {title}
-        </h1>
-      </div>
-      <div className="relative">
-        {userSession ? (
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-100 to-amber-200 border-2 border-[#26d9bb]/30 flex items-center justify-center">
-            <span className="text-sm font-bold text-amber-900">
-              {userInitials}
+    // NOTE: The nav is centered and constrained to a "mobile" width on larger screens.
+    <header className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-50 bg-[#0B1121]/90 backdrop-blur-md border-b border-gray-800">
+      <div className="px-5 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-[#26d9bb]/20 rounded-full flex items-center justify-center">
+            <span
+              className="material-symbols-outlined text-[#26d9bb] text-xl"
+              style={{ fontVariationSettings: '"FILL" 1, "wght" 600' }}
+            >
+              {icon}
             </span>
           </div>
-        ) : (
-          <div className="w-9 h-9 rounded-full bg-gray-700 border-2 border-gray-600 flex items-center justify-center">
-            <span className="text-sm font-bold text-gray-400">U</span>
-          </div>
-        )}
-        <span className="absolute top-0 right-0 w-3 h-3 bg-[#26d9bb] rounded-full border-2 border-[#0B1121]"></span>
+          <h1 className="text-xl font-bold tracking-tight text-white">
+            {title}
+          </h1>
+        </div>
+        <div className="relative">
+          {userSession ? (
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-100 to-amber-200 border-2 border-[#26d9bb]/30 flex items-center justify-center">
+              <span className="text-sm font-bold text-amber-900">
+                {userInitials}
+              </span>
+            </div>
+          ) : (
+            <div className="w-9 h-9 rounded-full bg-gray-700 border-2 border-gray-600 flex items-center justify-center">
+              <span className="text-sm font-bold text-gray-400">U</span>
+            </div>
+          )}
+          <span className="absolute top-0 right-0 w-3 h-3 bg-[#26d9bb] rounded-full border-2 border-[#0B1121]"></span>
+        </div>
       </div>
     </header>
   );
