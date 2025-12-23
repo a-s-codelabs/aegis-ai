@@ -40,7 +40,7 @@ export function AppLayout({
       {!hideTopNavbar && <TopNavbar title={navbarTitle} icon={navbarIcon} />}
 
       {/* Main Content */}
-      <main className={`relative z-10 flex-1 px-4 pb-20 pt-4 ${mainWidthClasses} ${!hideTopNavbar ? 'pt-20' : ''}`}>
+      <main className={`relative z-10 flex-1 px-4 pb-20 pt-4 ${mainWidthClasses} ${!hideTopNavbar ? 'pt-28' : ''}`}>
         {children}
       </main>
 
