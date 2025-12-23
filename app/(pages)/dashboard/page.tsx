@@ -540,8 +540,8 @@ function IncomingCallContent({
   onAccept,
 }: IncomingCallContentProps) {
   return (
-    <AppLayout fullWidth>
-      <div className="relative flex flex-1 flex-col items-center justify-between p-6 h-full overflow-hidden bg-black">
+    <div className="absolute inset-0 flex flex-col h-full w-full overflow-hidden bg-black">
+      <div className="relative flex flex-1 flex-col items-center justify-between h-full w-full overflow-hidden">
         {/* Background Pattern */}
         <div
           className="absolute inset-0 opacity-[0.15] pointer-events-none"
@@ -557,7 +557,7 @@ function IncomingCallContent({
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[40%] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none"></div>
 
         {/* Main Content */}
-        <div className="relative flex-1 flex flex-col items-center justify-center w-full pt-12 z-10">
+        <div className="relative flex-1 flex flex-col items-center justify-center w-full z-10">
           {/* Phone Icon with Animations */}
           <div
             className="relative mb-6"
@@ -621,7 +621,7 @@ function IncomingCallContent({
         </div>
 
         {/* Action Buttons Section */}
-        <div className="w-full pb-6 z-20">
+        <div className="w-full pb-4 z-20">
           <div className="flex items-end justify-between px-4">
             {/* DECLINE Button */}
             <button
@@ -757,7 +757,7 @@ function IncomingCallContent({
           }}
         />
       </div>
-    </AppLayout>
+    </div>
   );
 }
 
@@ -1294,7 +1294,7 @@ export default function DashboardPage() {
                     {/* iPhone Screen Content Container */}
                     <div className="absolute inset-0 w-full h-full overflow-hidden">
                       {/* Scale down slightly so full width (including nav & tabs) is visible */}
-                      <div className="w-full h-full origin-top scale-[0.92]">
+                      <div className={`w-full h-full origin-top ${incomingCall ? '' : 'scale-[0.92]'}`}>
                         {incomingCall ? (
                           <IncomingCallContent
                             incomingCall={incomingCall}
