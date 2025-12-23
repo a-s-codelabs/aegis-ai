@@ -781,9 +781,14 @@ export default function DashboardPage() {
   const transcriptIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const analysisTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastProcessedLengthRef = useRef<number>(0);
+  // Single shared ringtone audio instance (HTML5 Audio API)
+  const ringtoneAudioRef = useRef<HTMLAudioElement | null>(null);
   const [incomingCall, setIncomingCall] = useState<{
     number: string;
   } | null>(null);
+  const [lastDivertType, setLastDivertType] = useState<'scam' | 'safe'>(
+    'safe'
+  );
   const [calls, setCalls] = useState<Call[]>([
     {
       id: '1',
@@ -809,6 +814,53 @@ export default function DashboardPage() {
       status: 'unknown',
     },
   ]);
+
+  // Helper: lazily create & configure the shared ringtone audio instance
+  const ensureRingtoneAudio = () => {
+    if (typeof window === 'undefined') return null;
+
+    if (!ringtoneAudioRef.current) {
+      const audio = new Audio('/sounds/ringtone.mp3');
+      audio.loop = true;
+      ringtoneAudioRef.current = audio;
+    }
+
+    return ringtoneAudioRef.current;
+  };
+
+  // Helper: start/loop the ringtone (called only from user-initiated handlers)
+  const startRingtone = () => {
+    const audio = ensureRingtoneAudio();
+    if (!audio) return;
+
+    try {
+      // Prevent overlapping instances by reusing the same Audio object
+      if (audio.paused) {
+        audio.currentTime = 0;
+        void audio.play().catch((error) => {
+          // In production we log and fail gracefully without breaking UX
+          console.error('[Dashboard] Error playing ringtone:', error);
+        });
+      }
+    } catch (error) {
+      console.error('[Dashboard] Unexpected error starting ringtone:', error);
+    }
+  };
+
+  // Helper: stop and reset the ringtone cleanly
+  const stopRingtone = () => {
+    const audio = ringtoneAudioRef.current;
+    if (!audio) return;
+
+    try {
+      if (!audio.paused) {
+        audio.pause();
+      }
+      audio.currentTime = 0;
+    } catch (error) {
+      console.error('[Dashboard] Unexpected error stopping ringtone:', error);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -1013,20 +1065,30 @@ export default function DashboardPage() {
     endCall();
   };
 
-  const simulateScamCall = () => {
-    const phoneNumber = `+1 (${Math.floor(Math.random() * 900) + 100}) ${
+  // Helper to generate a random US-style phone number
+  const generateRandomPhoneNumber = () =>
+    `+1 (${Math.floor(Math.random() * 900) + 100}) ${
       Math.floor(Math.random() * 900) + 100
     }-${Math.floor(Math.random() * 9000) + 1000}`;
 
-    // Get a random scam conversation
-    const conversation = getRandomConversation('scam');
+  // Helper to start a simulated call (scam or safe) in a single place
+  const startSimulatedCall = ({
+    type,
+    number,
+  }: {
+    type: 'scam' | 'safe';
+    number?: string;
+  }) => {
+    const phoneNumber = number ?? generateRandomPhoneNumber();
+    const conversation = getRandomConversation(type);
+    const startTime = new Date();
 
     const newCall: Call = {
       id: Date.now().toString(),
       number: phoneNumber,
-      timestamp: new Date(),
+      timestamp: startTime,
       duration: 0,
-      status: 'scam',
+      status: type,
       risk: conversation.expectedRisk,
     };
 
@@ -1034,51 +1096,33 @@ export default function DashboardPage() {
     setActiveCall({
       number: phoneNumber,
       risk: conversation.expectedRisk,
+      // Start with no keywords – they will be populated by analysis
       keywords: [],
       transcript: conversation.transcript,
-      startTime: new Date(),
+      startTime,
     });
-    // Show full page monitoring in iPhone view when simulating scam call
+    // Always show full page monitoring in iPhone view when a simulated call starts
     setIsFullPageMonitoring(true);
+  };
+
+  const simulateScamCall = () => {
+    // NOTE: Kept for future/manual testing via code – UI buttons are commented out.
+    startSimulatedCall({ type: 'scam' });
   };
 
   const simulateSafeCall = () => {
-    const phoneNumber = `+1 (${Math.floor(Math.random() * 900) + 100}) ${
-      Math.floor(Math.random() * 900) + 100
-    }-${Math.floor(Math.random() * 9000) + 1000}`;
-
-    // Get a random safe conversation
-    const conversation = getRandomConversation('safe');
-
-    const newCall: Call = {
-      id: Date.now().toString(),
-      number: phoneNumber,
-      timestamp: new Date(),
-      duration: Math.floor(Math.random() * 300) + 60, // 1-6 minutes
-      status: 'safe',
-      risk: conversation.expectedRisk,
-    };
-
-    setCalls((prev) => [newCall, ...prev]);
-    setActiveCall({
-      number: phoneNumber,
-      risk: conversation.expectedRisk,
-      keywords: [], // No scam keywords for safe calls
-      transcript: conversation.transcript,
-      startTime: new Date(),
-    });
-    // Show full page monitoring in iPhone view when simulating safe call
-    setIsFullPageMonitoring(true);
+    // NOTE: Kept for future/manual testing via code – UI buttons are commented out.
+    startSimulatedCall({ type: 'safe' });
   };
 
   const simulateIncomingCall = () => {
-    const phoneNumber = `+1 (${Math.floor(Math.random() * 900) + 100}) ${
-      Math.floor(Math.random() * 900) + 100
-    }-${Math.floor(Math.random() * 9000) + 1000}`;
+    const phoneNumber = generateRandomPhoneNumber();
 
     setIncomingCall({
       number: phoneNumber,
     });
+    // Start ringtone after explicit user interaction (button click)
+    startRingtone();
   };
 
   const handleDeclineCall = () => {
@@ -1092,26 +1136,25 @@ export default function DashboardPage() {
       };
       setCalls((prev) => [newCall, ...prev]);
     }
+    // Stop ringtone when call is declined
+    stopRingtone();
     setIncomingCall(null);
   };
 
   const handleDivertToAI = () => {
     if (incomingCall) {
-      // Get a random conversation (mix of scam and safe for unknown calls)
-      // For unknown calls, we'll randomly pick between scam and safe
-      const isScam = Math.random() > 0.3; // 70% chance it's a scam for unknown numbers
-      const conversation = getRandomConversation(isScam ? 'scam' : 'safe');
-      const startTime = new Date();
+      // Alternate deterministically between scam and safe calls for each diverted call
+      const nextType: 'scam' | 'safe' =
+        lastDivertType === 'scam' ? 'safe' : 'scam';
+      setLastDivertType(nextType);
 
-      setActiveCall({
+      startSimulatedCall({
+        type: nextType,
         number: incomingCall.number,
-        risk: conversation.expectedRisk,
-        keywords: [],
-        transcript: conversation.transcript,
-        startTime,
       });
-      setIsFullPageMonitoring(true);
     }
+    // Stop ringtone when call is diverted to AI protection
+    stopRingtone();
     setIncomingCall(null);
   };
 
@@ -1126,8 +1169,17 @@ export default function DashboardPage() {
       };
       setCalls((prev) => [newCall, ...prev]);
     }
+    // Stop ringtone when call is accepted
+    stopRingtone();
     setIncomingCall(null);
   };
+
+  // Cleanup ringtone audio on unmount for safety
+  useEffect(() => {
+    return () => {
+      stopRingtone();
+    };
+  }, []);
 
   const stats = {
     totalCalls: 12,
@@ -1254,8 +1306,15 @@ export default function DashboardPage() {
 
       {/* Simulation Buttons */}
       <div className="pt-4">
-        <h3 className="text-lg font-semibold text-white mb-4">Test Features</h3>
+        <h3 className="text-lg font-semibold text-white mb-4">
+          Test Features
+        </h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* 
+            NOTE: The explicit "Simulate Scam" and "Simulate Safe" buttons have been
+            removed from the UI per request, but the underlying handlers remain
+            available for future/manual testing. 
+          
           <button
             onClick={simulateScamCall}
             disabled={!!activeCall || !!incomingCall}
@@ -1281,6 +1340,7 @@ export default function DashboardPage() {
               Simulate Safe
             </span>
           </button>
+          */}
 
           <button
             onClick={simulateIncomingCall}
@@ -1298,7 +1358,9 @@ export default function DashboardPage() {
       </div>
 
       <p className="text-sm lg:text-base text-slate-400 italic pt-2">
-        Use the simulation buttons to test different call scenarios. The mobile view on the right will update in real-time.
+        Use the Incoming Call button to test call scenarios. The mobile view on
+        the right will update in real-time, and diverting to AI will alternate
+        between scam and safe transcripts.
       </p>
     </>
   );
