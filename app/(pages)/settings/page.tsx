@@ -275,7 +275,7 @@ export default function SettingsPage() {
     <SplitLayoutWithIPhone
       leftContent={leftContent}
       iphoneContent={<SettingsContent />}
-      leftBasis="50%"
+      leftBasis="60%"
     />
   );
 }

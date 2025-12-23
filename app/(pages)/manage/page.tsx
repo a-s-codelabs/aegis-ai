@@ -268,7 +268,7 @@ export default function ManagePage() {
                   Listen Preview
                 </button>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Rachel - Selected */}
                 <button
                   onClick={() => setSelectedVoiceAgent('Rachel')}
@@ -278,7 +278,7 @@ export default function ManagePage() {
                       : 'border-white/5 bg-[#1e2936] cursor-pointer hover:bg-white/5'
                   }`}
                 >
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center gap-3 mb-2 pr-6">
                     <div
                       className={`h-9 w-9 rounded-full border flex items-center justify-center ${
                         selectedVoiceAgent === 'Rachel'
@@ -318,7 +318,7 @@ export default function ManagePage() {
                       : 'border-white/5 bg-[#1e2936] cursor-pointer hover:bg-white/5'
                   }`}
                 >
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center gap-3 mb-2 pr-6">
                     <div
                       className={`h-9 w-9 rounded-full border flex items-center justify-center ${
                         selectedVoiceAgent === 'Josh'
@@ -483,7 +483,7 @@ export default function ManagePage() {
     <SplitLayoutWithIPhone
       leftContent={leftContent}
       iphoneContent={<ManageContent />}
-      leftBasis="50%"
+      leftBasis="60%"
     />
   );
 }

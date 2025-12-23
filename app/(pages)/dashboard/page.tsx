@@ -1307,7 +1307,7 @@ export default function DashboardPage() {
     <SplitLayoutWithIPhone
       leftContent={leftContent}
       iphoneContent={iphoneContent}
-      leftBasis="50%"
+      leftBasis="60%"
     />
   );
 }

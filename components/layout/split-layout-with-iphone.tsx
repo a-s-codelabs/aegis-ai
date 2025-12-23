@@ -31,17 +31,22 @@ export function SplitLayoutWithIPhone({
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(38,217,187,0.1)_0,_rgba(18,32,30,0.8)_55%,_#12201e_100%)]" />
 
       {/* Split Layout Container */}
-      <div className="relative z-10 flex w-full flex-col lg:flex-row items-start justify-center min-h-screen">
+      <div className="relative z-10 flex w-full flex-col lg:flex-row items-start justify-start min-h-screen">
         {/* Left Side - Instructions (Scrollable) */}
         <div
-          className="flex flex-col items-center justify-start px-6 py-12 lg:py-12 lg:px-20 w-full lg:w-auto overflow-y-auto scrollbar-hide"
+          // NOTE: keep text left-aligned with `items-start`, but vertically center
+          // the whole left content block. Use symmetric horizontal padding so that
+          // the content can sit visually in the center of the left side.
+          className="flex flex-col items-start justify-center px-8 py-12 lg:py-0 lg:px-12 w-full lg:w-auto lg:min-h-screen overflow-y-auto scrollbar-hide"
           style={{ flexBasis: leftBasis }}
         >
-          <div className="w-full max-w-2xl space-y-8 text-left">{leftContent}</div>
+          <div className="w-full max-w-2xl lg:mx-auto space-y-8 text-left">
+            {leftContent}
+          </div>
         </div>
 
         {/* Right Side - iPhone Mockup (Fixed Position on Desktop) */}
-        <div className="hidden lg:flex items-center justify-center lg:fixed lg:right-0 lg:top-0 lg:bottom-0 lg:w-[50%] lg:h-screen lg:py-0 z-20">
+        <div className="hidden lg:flex items-center justify-center lg:fixed lg:right-0 lg:top-0 lg:bottom-0 lg:w-[40%] lg:h-screen lg:py-0 z-20">
           <div className="relative flex items-center justify-center">
             {/* iPhone Frame */}
             <div className="relative w-[320px] sm:w-[360px] md:w-[375px] h-[680px] sm:h-[760px] md:h-[812px] bg-gradient-to-b from-slate-900 to-black rounded-[3rem] p-2 shadow-2xl border-[3px] border-slate-800">
