@@ -1,6 +1,7 @@
 'use client';
 
 import { AppLayout } from '@/components/layout/app-layout';
+import { SplitLayoutWithIPhone } from '@/components/layout/split-layout-with-iphone';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -59,8 +60,10 @@ export default function ManagePage() {
     setVoiceStyleValue(Number(e.target.value));
   };
 
-  return (
-    <AppLayout hideTopNavbar>
+  // Manage Content Component (to be rendered inside iPhone)
+  function ManageContent() {
+    return (
+      <AppLayout hideTopNavbar fullWidth>
       <div className="flex flex-col gap-6 p-0">
         {/* Custom Header */}
         <div className="flex items-center justify-between">
@@ -265,7 +268,7 @@ export default function ManagePage() {
                   Listen Preview
                 </button>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Rachel - Selected */}
                 <button
                   onClick={() => setSelectedVoiceAgent('Rachel')}
@@ -275,7 +278,7 @@ export default function ManagePage() {
                       : 'border-white/5 bg-[#1e2936] cursor-pointer hover:bg-white/5'
                   }`}
                 >
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center gap-3 mb-2 pr-6">
                     <div
                       className={`h-9 w-9 rounded-full border flex items-center justify-center ${
                         selectedVoiceAgent === 'Rachel'
@@ -315,7 +318,7 @@ export default function ManagePage() {
                       : 'border-white/5 bg-[#1e2936] cursor-pointer hover:bg-white/5'
                   }`}
                 >
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center gap-3 mb-2 pr-6">
                     <div
                       className={`h-9 w-9 rounded-full border flex items-center justify-center ${
                         selectedVoiceAgent === 'Josh'
@@ -435,6 +438,53 @@ export default function ManagePage() {
         </div>
       </div>
     </AppLayout>
+    );
+  }
+
+  // Prepare left content (instructions)
+  const leftContent = (
+    <>
+      <h1 className="text-4xl lg:text-5xl font-bold leading-tight tracking-tight text-[#26d9bb] mb-4">
+        Smart Call Diversion
+      </h1>
+      <p className="text-lg lg:text-xl text-slate-400 leading-relaxed">
+        Configure your AI-powered call protection settings. Customize sensitivity levels, voice agents, and diversion messages to match your preferences.
+      </p>
+      <div className="space-y-4 text-base lg:text-lg text-slate-300">
+        <div className="flex items-start gap-3">
+          <span className="material-symbols-outlined text-[#26d9bb] text-xl mt-0.5">
+            shield_lock
+          </span>
+          <div>
+            <strong className="text-[#26d9bb]">AI Call Guardian:</strong> Automatically divert suspicious calls to our AI agent for screening.
+          </div>
+        </div>
+        <div className="flex items-start gap-3">
+          <span className="material-symbols-outlined text-[#26d9bb] text-xl mt-0.5">
+            tune
+          </span>
+          <div>
+            <strong className="text-[#26d9bb]">Diversion Sensitivity:</strong> Adjust how aggressively unknown numbers are screened.
+          </div>
+        </div>
+        <div className="flex items-start gap-3">
+          <span className="material-symbols-outlined text-[#26d9bb] text-xl mt-0.5">
+            record_voice_over
+          </span>
+          <div>
+            <strong className="text-[#26d9bb]">Voice Settings:</strong> Choose AI voice agents and customize voice style for call interactions.
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
+  return (
+    <SplitLayoutWithIPhone
+      leftContent={leftContent}
+      iphoneContent={<ManageContent />}
+      leftBasis="60%"
+    />
   );
 }
 

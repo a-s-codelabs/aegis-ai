@@ -1,6 +1,7 @@
 'use client';
 
 import { AppLayout } from '@/components/layout/app-layout';
+import { SplitLayoutWithIPhone } from '@/components/layout/split-layout-with-iphone';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -70,8 +71,10 @@ export default function SettingsPage() {
     return userSession?.name || 'User';
   };
 
-  return (
-    <AppLayout>
+  // Settings Content Component (to be rendered inside iPhone)
+  function SettingsContent() {
+    return (
+      <AppLayout fullWidth>
       <div className="flex flex-col items-center space-y-8 pb-8">
         {/* User Profile Section */}
         <section className="w-full flex flex-col items-center space-y-4 pt-4">
@@ -227,6 +230,53 @@ export default function SettingsPage() {
         </section>
       </div>
     </AppLayout>
+    );
+  }
+
+  // Prepare left content (instructions)
+  const leftContent = (
+    <>
+      <h1 className="text-4xl lg:text-5xl font-bold leading-tight tracking-tight text-[#26d9bb] mb-4">
+        Settings
+      </h1>
+      <p className="text-lg lg:text-xl text-slate-400 leading-relaxed">
+        Manage your account preferences and app settings. Control contact access, notification preferences, and more.
+      </p>
+      <div className="space-y-4 text-base lg:text-lg text-slate-300">
+        <div className="flex items-start gap-3">
+          <span className="material-symbols-outlined text-[#26d9bb] text-xl mt-0.5">
+            contacts
+          </span>
+          <div>
+            <strong className="text-[#26d9bb]">Contact Access:</strong> Allow the app to sync and access your contacts for better call protection.
+          </div>
+        </div>
+        <div className="flex items-start gap-3">
+          <span className="material-symbols-outlined text-[#26d9bb] text-xl mt-0.5">
+            call_split
+          </span>
+          <div>
+            <strong className="text-[#26d9bb]">Divert Call Popup:</strong> Enable popup notifications when unknown numbers call.
+          </div>
+        </div>
+        <div className="flex items-start gap-3">
+          <span className="material-symbols-outlined text-[#26d9bb] text-xl mt-0.5">
+            account_circle
+          </span>
+          <div>
+            <strong className="text-[#26d9bb]">Profile Management:</strong> Update your profile information and account settings.
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
+  return (
+    <SplitLayoutWithIPhone
+      leftContent={leftContent}
+      iphoneContent={<SettingsContent />}
+      leftBasis="60%"
+    />
   );
 }
 

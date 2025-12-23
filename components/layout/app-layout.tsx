@@ -10,6 +10,8 @@ interface AppLayoutProps {
   hideBottomNavbar?: boolean;
   navbarTitle?: string;
   navbarIcon?: string;
+  // When true, use full width (useful for embedded/mobile mock views)
+  fullWidth?: boolean;
 }
 
 export function AppLayout({
@@ -18,9 +20,37 @@ export function AppLayout({
   hideBottomNavbar = false,
   navbarTitle,
   navbarIcon,
+  fullWidth = false,
 }: AppLayoutProps) {
+  const mainWidthClasses = fullWidth
+    ? 'max-w-full w-full'
+    : 'max-w-lg mx-auto w-full';
+
+  // When fullWidth (iPhone mockup), use absolute positioning for navbars
+  const containerClasses = fullWidth
+    ? 'relative flex h-full w-full flex-col overflow-hidden bg-[#0B1121] text-gray-100'
+    : 'relative flex min-h-screen w-full flex-col overflow-hidden bg-[#0B1121] text-gray-100';
+
+  // Calculate padding based on navbar visibility
+  // Top navbar height: ~72px (py-4 + content), Bottom navbar height: ~70px (pt-2 + content + pb-2)
+  // Give a bit more breathing room in fullWidth (iPhone) mode so headers don't touch the notch
+  const topPadding = !hideTopNavbar
+    ? fullWidth
+      ? 'pt-28'
+      : 'pt-28'
+    : fullWidth
+    ? 'pt-6'
+    : '';
+
+  // Give a bit more breathing room at the bottom in fullWidth (iPhone) mode
+  const bottomPadding = !hideBottomNavbar
+    ? fullWidth
+      ? 'pb-24'
+      : 'pb-20'
+    : '';
+
   return (
-    <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#0B1121] text-gray-100">
+    <div className={containerClasses}>
       {/* Background layers - matching register page pattern */}
       <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-[#111827] to-[#020617]" />
       <div className="pointer-events-none absolute left-0 top-0 h-1/2 w-full bg-gradient-to-br from-teal-900/10 to-transparent opacity-50" />
@@ -30,15 +60,21 @@ export function AppLayout({
       />
 
       {/* Top Navbar */}
-      {!hideTopNavbar && <TopNavbar title={navbarTitle} icon={navbarIcon} />}
+      {!hideTopNavbar && (
+        <TopNavbar 
+          title={navbarTitle} 
+          icon={navbarIcon}
+          isFullWidth={fullWidth}
+        />
+      )}
 
       {/* Main Content */}
-      <main className="relative z-10 flex-1 px-4 pb-26 pt-4 max-w-lg mx-auto w-full">
+      <main className={`relative z-10 flex-1 px-4 ${topPadding} ${bottomPadding} ${mainWidthClasses} overflow-y-auto ${fullWidth ? 'scrollbar-hide' : ''}`}>
         {children}
       </main>
 
       {/* Bottom Navbar */}
-      {!hideBottomNavbar && <BottomNavbar />}
+      {!hideBottomNavbar && <BottomNavbar isFullWidth={fullWidth} />}
     </div>
   );
 }
