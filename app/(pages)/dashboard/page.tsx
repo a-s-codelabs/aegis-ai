@@ -51,6 +51,21 @@ interface DashboardContentProps {
   formatDuration: (seconds: number) => string;
 }
 
+// Full Page Monitoring Content Component (to be rendered inside iPhone)
+interface FullPageMonitoringContentProps {
+  activeCall: {
+    number: string;
+    risk: number;
+    keywords: string[];
+    transcript: TranscriptEntry[];
+    startTime?: Date;
+  };
+  visibleTranscript: TranscriptEntry[];
+  onEndCall: () => void;
+  onTakeOverCall: () => void;
+  onGoToDashboard: () => void;
+}
+
 // Incoming Call Content Component (to be rendered inside iPhone)
 interface IncomingCallContentProps {
   incomingCall: {
@@ -322,6 +337,199 @@ function DashboardContent({
         </div>
       </div>
     </AppLayout>
+  );
+}
+
+function FullPageMonitoringContent({
+  activeCall,
+  visibleTranscript,
+  onEndCall,
+  onTakeOverCall,
+  onGoToDashboard,
+}: FullPageMonitoringContentProps) {
+  return (
+    <div className="relative flex flex-col h-full w-full overflow-hidden bg-black">
+      <div className="relative flex flex-1 flex-col z-10 h-full overflow-y-auto scrollbar-hide">
+        {/* Background Pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.15] pointer-events-none"
+          style={{
+            backgroundImage:
+              'linear-gradient(to right, #333 1px, transparent 1px), linear-gradient(to bottom, #333 1px, transparent 1px)',
+            backgroundSize: '40px 40px',
+          }}
+        ></div>
+
+        {/* Gradient Blurs */}
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[40%] bg-[#2dd4bf]/10 rounded-full blur-[120px] pointer-events-none"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[40%] bg-red-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+
+        {/* Header */}
+        <div className="sticky top-0 bg-black/80 backdrop-blur-md border-b border-slate-800/50 z-20 p-4">
+          <div className="flex justify-between items-center w-full">
+            <div className="flex items-center gap-2">
+              <div
+                className={`relative flex h-3 w-3 ${
+                  activeCall.risk < 20
+                    ? 'bg-green-500'
+                    : activeCall.risk < 70
+                    ? 'bg-orange-500'
+                    : 'bg-red-500'
+                } rounded-full`}
+              >
+                <span
+                  className={`absolute inline-flex h-full w-full rounded-full ${
+                    activeCall.risk < 20
+                      ? 'bg-green-400'
+                      : activeCall.risk < 70
+                      ? 'bg-orange-400'
+                      : 'bg-red-400'
+                  } opacity-75 animate-ping`}
+                ></span>
+              </div>
+              <div>
+                <h2 className="text-white font-semibold text-sm">
+                  Active Call Monitoring
+                </h2>
+                <p className="text-slate-400 text-xs">
+                  {activeCall.number}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onEndCall}
+              className="bg-red-500 hover:bg-red-600 text-white text-xs font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1 shadow-lg"
+            >
+              <span className="material-symbols-outlined text-sm">
+                call_end
+              </span>
+              End
+            </button>
+          </div>
+        </div>
+
+        {/* Risk Level Section */}
+        <div className="w-full p-4">
+          <div className="bg-slate-900/60 border border-slate-700/50 rounded-xl p-4 mb-3">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-slate-300 font-medium text-xs">
+                Scam Risk Level
+              </span>
+              <span
+                className={`font-bold text-lg ${
+                  activeCall.risk < 20
+                    ? 'text-green-500'
+                    : activeCall.risk < 50
+                    ? 'text-yellow-500'
+                    : activeCall.risk < 70
+                    ? 'text-orange-500'
+                    : 'text-red-500'
+                }`}
+              >
+                {activeCall.risk}%
+              </span>
+            </div>
+            <div className="w-full bg-slate-700 rounded-full h-2">
+              <div
+                className={`h-2 rounded-full transition-all duration-500 ${
+                  activeCall.risk < 20
+                    ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]'
+                    : activeCall.risk < 50
+                    ? 'bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.5)]'
+                    : activeCall.risk < 70
+                    ? 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]'
+                    : 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]'
+                }`}
+                style={{ width: `${activeCall.risk}%` }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Keywords */}
+          {activeCall.keywords.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {activeCall.keywords.map((keyword, idx) => (
+                <span
+                  key={idx}
+                  className="px-2 py-1 bg-red-900/30 border border-red-500/30 text-red-400 text-[10px] font-medium rounded-md uppercase tracking-wide"
+                >
+                  {keyword}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Transcript Section */}
+          <div className="bg-slate-900/60 border border-slate-700/50 rounded-xl p-4 mb-20">
+            <h3 className="text-white font-semibold text-xs mb-3 flex items-center gap-2">
+              <span className="material-symbols-outlined text-sm text-[#26d9bb]">
+                transcript
+              </span>
+              Live Transcript
+            </h3>
+            <div className="space-y-3 max-h-[300px] overflow-y-auto scrollbar-hide">
+              {visibleTranscript.length === 0 ? (
+                <div className="text-center py-6">
+                  <div className="inline-flex items-center gap-2 text-slate-400 text-xs">
+                    <span className="material-symbols-outlined animate-spin text-sm">
+                      sync
+                    </span>
+                    <span>Waiting for conversation to start...</span>
+                  </div>
+                </div>
+              ) : (
+                visibleTranscript.map((entry, idx) => (
+                  <div
+                    key={idx}
+                    className={`text-xs animate-in fade-in slide-in-from-bottom-2 duration-300 ${
+                      entry.speaker === 'AI Agent'
+                        ? 'bg-slate-800/50 p-3 rounded-lg border border-slate-700/30'
+                        : 'bg-slate-800/30 p-3 rounded-lg'
+                    }`}
+                  >
+                    {entry.speaker === 'AI Agent' ? (
+                      <>
+                        <p className="text-[#26d9bb] font-bold mb-1 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-xs">
+                            smart_toy
+                          </span>
+                          {entry.speaker}
+                        </p>
+                        <p className="text-slate-200 leading-relaxed text-xs">
+                          {entry.text}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-red-400 font-bold mb-1 text-xs">
+                          {entry.speaker}:
+                        </p>
+                        <p className="text-slate-300 leading-relaxed text-xs">
+                          {entry.text}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Fixed Go to Dashboard Button at Bottom */}
+        <div className="sticky bottom-0 bg-black/90 backdrop-blur-md border-t border-slate-800/50 z-30 p-3 mt-auto">
+          <button
+            onClick={onGoToDashboard}
+            className="w-full bg-slate-800/90 hover:bg-slate-700/90 border border-slate-600/50 text-white font-semibold py-2.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg text-xs"
+          >
+            <span className="material-symbols-outlined text-sm">
+              dashboard
+            </span>
+            Go to Dashboard
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -827,6 +1035,8 @@ export default function DashboardPage() {
       transcript: conversation.transcript,
       startTime: new Date(),
     });
+    // Show full page monitoring in iPhone view when simulating scam call
+    setIsFullPageMonitoring(true);
   };
 
   const simulateSafeCall = () => {
@@ -854,6 +1064,8 @@ export default function DashboardPage() {
       transcript: conversation.transcript,
       startTime: new Date(),
     });
+    // Show full page monitoring in iPhone view when simulating safe call
+    setIsFullPageMonitoring(true);
   };
 
   const simulateIncomingCall = () => {
@@ -970,196 +1182,6 @@ export default function DashboardPage() {
 
   return (
     <>
-      {/* Full Page Active Call Monitoring - Outside AppLayout to hide navbars */}
-      {activeCall && isFullPageMonitoring ? (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col overflow-hidden">
-          {/* Background Pattern */}
-          <div
-            className="absolute inset-0 opacity-[0.15] pointer-events-none"
-            style={{
-              backgroundImage:
-                'linear-gradient(to right, #333 1px, transparent 1px), linear-gradient(to bottom, #333 1px, transparent 1px)',
-              backgroundSize: '40px 40px',
-            }}
-          ></div>
-
-          {/* Gradient Blurs */}
-          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[40%] bg-[#2dd4bf]/10 rounded-full blur-[120px] pointer-events-none"></div>
-          <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[40%] bg-red-500/10 rounded-full blur-[120px] pointer-events-none"></div>
-
-          {/* Main Content */}
-          <div className="relative flex-1 flex flex-col z-10 h-full overflow-y-auto scrollbar-hide">
-            {/* Header */}
-            <div className="sticky top-0 bg-black/80 backdrop-blur-md border-b border-slate-800/50 z-20 p-4">
-              <div className="flex justify-between items-center max-w-4xl mx-auto w-full">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`relative flex h-4 w-4 ${
-                      activeCall.risk < 20
-                        ? 'bg-green-500'
-                        : activeCall.risk < 70
-                        ? 'bg-orange-500'
-                        : 'bg-red-500'
-                    } rounded-full`}
-                  >
-                    <span
-                      className={`absolute inline-flex h-full w-full rounded-full ${
-                        activeCall.risk < 20
-                          ? 'bg-green-400'
-                          : activeCall.risk < 70
-                          ? 'bg-orange-400'
-                          : 'bg-red-400'
-                      } opacity-75 animate-ping`}
-                    ></span>
-                  </div>
-                  <div>
-                    <h2 className="text-white font-semibold text-lg">
-                      Active Call Monitoring
-                    </h2>
-                    <p className="text-slate-400 text-sm">
-                      {activeCall.number}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleTakeOverCall}
-                  className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-2 px-4 rounded-lg transition-colors flex items-center gap-2 shadow-lg"
-                >
-                  <span className="material-symbols-outlined text-lg">
-                    call
-                  </span>
-                  Take Over Call
-                </button>
-              </div>
-            </div>
-
-            {/* Risk Level Section */}
-            <div className="max-w-4xl mx-auto w-full p-4">
-              <div className="bg-slate-900/60 border border-slate-700/50 rounded-2xl p-6 mb-4">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-slate-300 font-medium text-sm">
-                    Scam Risk Level
-                  </span>
-                  <span
-                    className={`font-bold text-2xl ${
-                      activeCall.risk < 20
-                        ? 'text-green-500'
-                        : activeCall.risk < 50
-                        ? 'text-yellow-500'
-                        : activeCall.risk < 70
-                        ? 'text-orange-500'
-                        : 'text-red-500'
-                    }`}
-                  >
-                    {activeCall.risk}%
-                  </span>
-                </div>
-                <div className="w-full bg-slate-700 rounded-full h-3">
-                  <div
-                    className={`h-3 rounded-full transition-all duration-500 ${
-                      activeCall.risk < 20
-                        ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]'
-                        : activeCall.risk < 50
-                        ? 'bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.5)]'
-                        : activeCall.risk < 70
-                        ? 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]'
-                        : 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]'
-                    }`}
-                    style={{ width: `${activeCall.risk}%` }}
-                  ></div>
-                </div>
-              </div>
-
-              {/* Keywords */}
-              {activeCall.keywords.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {activeCall.keywords.map((keyword, idx) => (
-                    <span
-                      key={idx}
-                      className="px-3 py-1.5 bg-red-900/30 border border-red-500/30 text-red-400 text-xs font-medium rounded-lg uppercase tracking-wide"
-                    >
-                      {keyword}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {/* Transcript Section */}
-              <div className="bg-slate-900/60 border border-slate-700/50 rounded-2xl p-6 mb-20">
-                <h3 className="text-white font-semibold text-base mb-4 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-lg text-[#26d9bb]">
-                    transcript
-                  </span>
-                  Live Transcript
-                </h3>
-                <div className="space-y-4 max-h-[calc(100vh-450px)] overflow-y-auto scrollbar-hide">
-                  {visibleTranscript.length === 0 ? (
-                    <div className="text-center py-8">
-                      <div className="inline-flex items-center gap-2 text-slate-400">
-                        <span className="material-symbols-outlined animate-spin">
-                          sync
-                        </span>
-                        <span>Waiting for conversation to start...</span>
-                      </div>
-                    </div>
-                  ) : (
-                    visibleTranscript.map((entry, idx) => (
-                      <div
-                        key={idx}
-                        className={`text-sm animate-in fade-in slide-in-from-bottom-2 duration-300 ${
-                          entry.speaker === 'AI Agent'
-                            ? 'bg-slate-800/50 p-4 rounded-lg border border-slate-700/30'
-                            : 'bg-slate-800/30 p-4 rounded-lg'
-                        }`}
-                      >
-                        {entry.speaker === 'AI Agent' ? (
-                          <>
-                            <p className="text-[#26d9bb] font-bold mb-2 flex items-center gap-2">
-                              <span className="material-symbols-outlined text-base">
-                                smart_toy
-                              </span>
-                              {entry.speaker}
-                            </p>
-                            <p className="text-slate-200 leading-relaxed">
-                              {entry.text}
-                            </p>
-                          </>
-                        ) : (
-                          <>
-                            <p className="text-red-400 font-bold mb-2">
-                              {entry.speaker}:
-                            </p>
-                            <p className="text-slate-300 leading-relaxed">
-                              {entry.text}
-                            </p>
-                          </>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Fixed Go to Dashboard Button at Bottom */}
-            <div className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-slate-800/50 z-30 p-4">
-              <div className="max-w-4xl mx-auto">
-                <button
-                  onClick={() => {
-                    setIsFullPageMonitoring(false);
-                  }}
-                  className="w-full bg-slate-800/90 hover:bg-slate-700/90 border border-slate-600/50 text-white font-semibold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg"
-                >
-                  <span className="material-symbols-outlined text-lg">
-                    dashboard
-                  </span>
-                  Go to Dashboard
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : (
         <div className="relative flex min-h-screen w-full overflow-hidden bg-[#020617] text-foreground">
           {/* Grid pattern background */}
           <div className="pointer-events-none absolute inset-0 h-full w-full bg-grid-pattern opacity-100" />
@@ -1280,6 +1302,14 @@ export default function DashboardPage() {
                             onDivertToAI={handleDivertToAI}
                             onAccept={handleAcceptCall}
                           />
+                        ) : activeCall && isFullPageMonitoring ? (
+                          <FullPageMonitoringContent
+                            activeCall={activeCall}
+                            visibleTranscript={visibleTranscript}
+                            onEndCall={endCall}
+                            onTakeOverCall={handleTakeOverCall}
+                            onGoToDashboard={() => setIsFullPageMonitoring(false)}
+                          />
                         ) : (
                           <DashboardContent
                             activeCall={activeCall}
@@ -1304,7 +1334,6 @@ export default function DashboardPage() {
           {/* Bottom fade */}
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#12201e] to-transparent" />
         </div>
-      )}
     </>
   );
 }
