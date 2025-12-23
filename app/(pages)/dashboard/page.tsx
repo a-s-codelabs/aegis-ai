@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { AppLayout } from '@/components/layout/app-layout';
+import { SplitLayoutWithIPhone } from '@/components/layout/split-layout-with-iphone';
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { analyzeConversation } from '@/lib/utils/conversation-analysis';
@@ -1182,160 +1183,131 @@ export default function DashboardPage() {
     return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
   };
 
-  return (
+  // Prepare iPhone content
+  const iphoneContent = incomingCall ? (
+    <IncomingCallContent
+      incomingCall={incomingCall}
+      onDecline={handleDeclineCall}
+      onDivertToAI={handleDivertToAI}
+      onAccept={handleAcceptCall}
+    />
+  ) : activeCall && isFullPageMonitoring ? (
+    <FullPageMonitoringContent
+      activeCall={activeCall}
+      visibleTranscript={visibleTranscript}
+      onEndCall={endCall}
+      onTakeOverCall={handleTakeOverCall}
+      onGoToDashboard={() => setIsFullPageMonitoring(false)}
+    />
+  ) : (
+    <DashboardContent
+      activeCall={activeCall}
+      isFullPageMonitoring={isFullPageMonitoring}
+      calls={calls}
+      stats={stats}
+      onEndCall={endCall}
+      onViewFullMonitoring={() => setIsFullPageMonitoring(true)}
+      getCallIcon={getCallIcon}
+      getCallStatusBadge={getCallStatusBadge}
+      formatDuration={formatDuration}
+    />
+  );
+
+  // Prepare left content (instructions)
+  const leftContent = (
     <>
-        <div className="relative flex min-h-screen w-full overflow-hidden bg-[#020617] text-foreground">
-          {/* Grid pattern background */}
-          <div className="pointer-events-none absolute inset-0 h-full w-full bg-grid-pattern opacity-100" />
+      <div>
+        <h1 className="text-4xl lg:text-5xl font-bold leading-tight tracking-tight text-[#26d9bb] mb-4">
+          Anti-Scam Dashboard
+        </h1>
+        <p className="text-lg lg:text-xl text-slate-400 leading-relaxed">
+          Monitor and manage your call protection in real-time. View call statistics, recent activity, and active call monitoring.
+        </p>
+      </div>
 
-          {/* Central radial glow */}
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(38,217,187,0.1)_0,_rgba(18,32,30,0.8)_55%,_#12201e_100%)]" />
-
-          {/* Split Layout Container */}
-          <div className="relative z-10 flex w-full flex-col lg:flex-row items-center justify-center min-h-screen">
-            {/* Left Side - Instructions */}
-            <div className="flex flex-col items-center justify-center px-6 py-12 lg:py-0 lg:px-20 lg:basis-[50%]">
-              <div className="w-full max-w-2xl space-y-8 text-left">
-                <div>
-                  <h1 className="text-4xl lg:text-5xl font-bold leading-tight tracking-tight text-[#26d9bb] mb-4">
-                    Anti-Scam Dashboard
-                  </h1>
-                  <p className="text-lg lg:text-xl text-slate-400 leading-relaxed">
-                    Monitor and manage your call protection in real-time. View call statistics, recent activity, and active call monitoring.
-                  </p>
-                </div>
-
-                <div className="space-y-4 text-base lg:text-lg text-slate-300">
-                  <div className="flex items-start gap-3">
-                    <span className="material-symbols-outlined text-[#26d9bb] text-xl mt-0.5">
-                      call
-                    </span>
-                    <div>
-                      <strong className="text-[#26d9bb]">Active Call Monitoring:</strong> Real-time AI-powered analysis of ongoing calls with scam risk detection.
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="material-symbols-outlined text-[#26d9bb] text-xl mt-0.5">
-                      bar_chart
-                    </span>
-                    <div>
-                      <strong className="text-[#26d9bb]">Call Statistics:</strong> Track total calls, blocked scams, and safe calls.
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="material-symbols-outlined text-[#26d9bb] text-xl mt-0.5">
-                      history
-                    </span>
-                    <div>
-                      <strong className="text-[#26d9bb]">Recent Calls:</strong> View your call history with risk assessments and status indicators.
-                    </div>
-                  </div>
-                </div>
-
-                {/* Simulation Buttons */}
-                <div className="pt-4">
-                  <h3 className="text-lg font-semibold text-white mb-4">Test Features</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <button
-                      onClick={simulateScamCall}
-                      disabled={!!activeCall || !!incomingCall}
-                      className="flex flex-col items-center justify-center gap-2 bg-slate-800/90 border border-red-500/30 rounded-xl p-4 hover:bg-slate-700/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-                    >
-                      <span className="material-symbols-outlined text-red-500 text-2xl">
-                        bug_report
-                      </span>
-                      <span className="text-xs font-semibold text-white">
-                        Simulate Scam
-                      </span>
-                    </button>
-
-                    <button
-                      onClick={simulateSafeCall}
-                      disabled={!!activeCall || !!incomingCall}
-                      className="flex flex-col items-center justify-center gap-2 bg-slate-800/90 border border-green-500/30 rounded-xl p-4 hover:bg-slate-700/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-                    >
-                      <span className="material-symbols-outlined text-green-500 text-2xl">
-                        security
-                      </span>
-                      <span className="text-xs font-semibold text-white">
-                        Simulate Safe
-                      </span>
-                    </button>
-
-                    <button
-                      onClick={simulateIncomingCall}
-                      disabled={!!activeCall || !!incomingCall}
-                      className="flex flex-col items-center justify-center gap-2 bg-slate-800/90 border border-[#26d9bb]/30 rounded-xl p-4 hover:bg-slate-700/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-                    >
-                      <span className="material-symbols-outlined text-[#26d9bb] text-2xl">
-                        ring_volume
-                      </span>
-                      <span className="text-xs font-semibold text-white">
-                        Incoming Call
-                      </span>
-                    </button>
-                  </div>
-                </div>
-
-                <p className="text-sm lg:text-base text-slate-400 italic pt-2">
-                  Use the simulation buttons to test different call scenarios. The mobile view on the right will update in real-time.
-                </p>
-              </div>
-            </div>
-
-            {/* Right Side - iPhone Mockup with Dashboard Content */}
-            <div className="flex items-center justify-center px-4 sm:px-6 py-12 lg:py-0 lg:basis-[50%]">
-              <div className="relative flex items-center justify-center">
-                {/* iPhone Frame */}
-                <div className="relative w-[320px] sm:w-[360px] md:w-[375px] h-[680px] sm:h-[760px] md:h-[812px] bg-gradient-to-b from-slate-900 to-black rounded-[3rem] p-2 shadow-2xl border-[3px] border-slate-800">
-                  {/* Notch/Dynamic Island */}
-                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-32 h-8 bg-black rounded-full z-30" />
-                  
-                  {/* Screen with Dashboard/Incoming Call Content */}
-                  <div className="relative w-full h-full bg-[#0B1121] rounded-[2.5rem] overflow-hidden">
-                    {/* iPhone Screen Content Container */}
-                    <div className="absolute inset-0 w-full h-full overflow-hidden">
-                      {/* Full screen content - no scaling needed */}
-                      <div className="w-full h-full">
-                        {incomingCall ? (
-                          <IncomingCallContent
-                            incomingCall={incomingCall}
-                            onDecline={handleDeclineCall}
-                            onDivertToAI={handleDivertToAI}
-                            onAccept={handleAcceptCall}
-                          />
-                        ) : activeCall && isFullPageMonitoring ? (
-                          <FullPageMonitoringContent
-                            activeCall={activeCall}
-                            visibleTranscript={visibleTranscript}
-                            onEndCall={endCall}
-                            onTakeOverCall={handleTakeOverCall}
-                            onGoToDashboard={() => setIsFullPageMonitoring(false)}
-                          />
-                        ) : (
-                          <DashboardContent
-                            activeCall={activeCall}
-                            isFullPageMonitoring={isFullPageMonitoring}
-                            calls={calls}
-                            stats={stats}
-                            onEndCall={endCall}
-                            onViewFullMonitoring={() => setIsFullPageMonitoring(true)}
-                            getCallIcon={getCallIcon}
-                            getCallStatusBadge={getCallStatusBadge}
-                            formatDuration={formatDuration}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+      <div className="space-y-4 text-base lg:text-lg text-slate-300">
+        <div className="flex items-start gap-3">
+          <span className="material-symbols-outlined text-[#26d9bb] text-xl mt-0.5">
+            call
+          </span>
+          <div>
+            <strong className="text-[#26d9bb]">Active Call Monitoring:</strong> Real-time AI-powered analysis of ongoing calls with scam risk detection.
           </div>
-
-          {/* Bottom fade */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#12201e] to-transparent" />
         </div>
+        <div className="flex items-start gap-3">
+          <span className="material-symbols-outlined text-[#26d9bb] text-xl mt-0.5">
+            bar_chart
+          </span>
+          <div>
+            <strong className="text-[#26d9bb]">Call Statistics:</strong> Track total calls, blocked scams, and safe calls.
+          </div>
+        </div>
+        <div className="flex items-start gap-3">
+          <span className="material-symbols-outlined text-[#26d9bb] text-xl mt-0.5">
+            history
+          </span>
+          <div>
+            <strong className="text-[#26d9bb]">Recent Calls:</strong> View your call history with risk assessments and status indicators.
+          </div>
+        </div>
+      </div>
+
+      {/* Simulation Buttons */}
+      <div className="pt-4">
+        <h3 className="text-lg font-semibold text-white mb-4">Test Features</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <button
+            onClick={simulateScamCall}
+            disabled={!!activeCall || !!incomingCall}
+            className="flex flex-col items-center justify-center gap-2 bg-slate-800/90 border border-red-500/30 rounded-xl p-4 hover:bg-slate-700/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+          >
+            <span className="material-symbols-outlined text-red-500 text-2xl">
+              bug_report
+            </span>
+            <span className="text-xs font-semibold text-white">
+              Simulate Scam
+            </span>
+          </button>
+
+          <button
+            onClick={simulateSafeCall}
+            disabled={!!activeCall || !!incomingCall}
+            className="flex flex-col items-center justify-center gap-2 bg-slate-800/90 border border-green-500/30 rounded-xl p-4 hover:bg-slate-700/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+          >
+            <span className="material-symbols-outlined text-green-500 text-2xl">
+              security
+            </span>
+            <span className="text-xs font-semibold text-white">
+              Simulate Safe
+            </span>
+          </button>
+
+          <button
+            onClick={simulateIncomingCall}
+            disabled={!!activeCall || !!incomingCall}
+            className="flex flex-col items-center justify-center gap-2 bg-slate-800/90 border border-[#26d9bb]/30 rounded-xl p-4 hover:bg-slate-700/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+          >
+            <span className="material-symbols-outlined text-[#26d9bb] text-2xl">
+              ring_volume
+            </span>
+            <span className="text-xs font-semibold text-white">
+              Incoming Call
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <p className="text-sm lg:text-base text-slate-400 italic pt-2">
+        Use the simulation buttons to test different call scenarios. The mobile view on the right will update in real-time.
+      </p>
     </>
+  );
+
+  return (
+    <SplitLayoutWithIPhone
+      leftContent={leftContent}
+      iphoneContent={iphoneContent}
+      leftBasis="50%"
+    />
   );
 }

@@ -33,8 +33,21 @@ export function AppLayout({
 
   // Calculate padding based on navbar visibility
   // Top navbar height: ~72px (py-4 + content), Bottom navbar height: ~70px (pt-2 + content + pb-2)
-  const topPadding = !hideTopNavbar ? (fullWidth ? 'pt-20' : 'pt-28') : '';
-  const bottomPadding = !hideBottomNavbar ? 'pb-20' : '';
+  // Give a bit more breathing room in fullWidth (iPhone) mode so headers don't touch the notch
+  const topPadding = !hideTopNavbar
+    ? fullWidth
+      ? 'pt-28'
+      : 'pt-28'
+    : fullWidth
+    ? 'pt-6'
+    : '';
+
+  // Give a bit more breathing room at the bottom in fullWidth (iPhone) mode
+  const bottomPadding = !hideBottomNavbar
+    ? fullWidth
+      ? 'pb-24'
+      : 'pb-20'
+    : '';
 
   return (
     <div className={containerClasses}>
@@ -56,7 +69,7 @@ export function AppLayout({
       )}
 
       {/* Main Content */}
-      <main className={`relative z-10 flex-1 px-4 ${topPadding} ${bottomPadding} ${mainWidthClasses} overflow-y-auto`}>
+      <main className={`relative z-10 flex-1 px-4 ${topPadding} ${bottomPadding} ${mainWidthClasses} overflow-y-auto ${fullWidth ? 'scrollbar-hide' : ''}`}>
         {children}
       </main>
 
