@@ -781,6 +781,8 @@ export default function DashboardPage() {
   const transcriptIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const analysisTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastProcessedLengthRef = useRef<number>(0);
+  // Single shared ringtone audio instance (HTML5 Audio API)
+  const ringtoneAudioRef = useRef<HTMLAudioElement | null>(null);
   const [incomingCall, setIncomingCall] = useState<{
     number: string;
   } | null>(null);
@@ -812,6 +814,53 @@ export default function DashboardPage() {
       status: 'unknown',
     },
   ]);
+
+  // Helper: lazily create & configure the shared ringtone audio instance
+  const ensureRingtoneAudio = () => {
+    if (typeof window === 'undefined') return null;
+
+    if (!ringtoneAudioRef.current) {
+      const audio = new Audio('/sounds/ringtone.mp3');
+      audio.loop = true;
+      ringtoneAudioRef.current = audio;
+    }
+
+    return ringtoneAudioRef.current;
+  };
+
+  // Helper: start/loop the ringtone (called only from user-initiated handlers)
+  const startRingtone = () => {
+    const audio = ensureRingtoneAudio();
+    if (!audio) return;
+
+    try {
+      // Prevent overlapping instances by reusing the same Audio object
+      if (audio.paused) {
+        audio.currentTime = 0;
+        void audio.play().catch((error) => {
+          // In production we log and fail gracefully without breaking UX
+          console.error('[Dashboard] Error playing ringtone:', error);
+        });
+      }
+    } catch (error) {
+      console.error('[Dashboard] Unexpected error starting ringtone:', error);
+    }
+  };
+
+  // Helper: stop and reset the ringtone cleanly
+  const stopRingtone = () => {
+    const audio = ringtoneAudioRef.current;
+    if (!audio) return;
+
+    try {
+      if (!audio.paused) {
+        audio.pause();
+      }
+      audio.currentTime = 0;
+    } catch (error) {
+      console.error('[Dashboard] Unexpected error stopping ringtone:', error);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -1072,6 +1121,8 @@ export default function DashboardPage() {
     setIncomingCall({
       number: phoneNumber,
     });
+    // Start ringtone after explicit user interaction (button click)
+    startRingtone();
   };
 
   const handleDeclineCall = () => {
@@ -1085,6 +1136,8 @@ export default function DashboardPage() {
       };
       setCalls((prev) => [newCall, ...prev]);
     }
+    // Stop ringtone when call is declined
+    stopRingtone();
     setIncomingCall(null);
   };
 
@@ -1100,6 +1153,8 @@ export default function DashboardPage() {
         number: incomingCall.number,
       });
     }
+    // Stop ringtone when call is diverted to AI protection
+    stopRingtone();
     setIncomingCall(null);
   };
 
@@ -1114,8 +1169,17 @@ export default function DashboardPage() {
       };
       setCalls((prev) => [newCall, ...prev]);
     }
+    // Stop ringtone when call is accepted
+    stopRingtone();
     setIncomingCall(null);
   };
+
+  // Cleanup ringtone audio on unmount for safety
+  useEffect(() => {
+    return () => {
+      stopRingtone();
+    };
+  }, []);
 
   const stats = {
     totalCalls: 12,
