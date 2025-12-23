@@ -784,6 +784,9 @@ export default function DashboardPage() {
   const [incomingCall, setIncomingCall] = useState<{
     number: string;
   } | null>(null);
+  const [lastDivertType, setLastDivertType] = useState<'scam' | 'safe'>(
+    'safe'
+  );
   const [calls, setCalls] = useState<Call[]>([
     {
       id: '1',
@@ -1013,20 +1016,30 @@ export default function DashboardPage() {
     endCall();
   };
 
-  const simulateScamCall = () => {
-    const phoneNumber = `+1 (${Math.floor(Math.random() * 900) + 100}) ${
+  // Helper to generate a random US-style phone number
+  const generateRandomPhoneNumber = () =>
+    `+1 (${Math.floor(Math.random() * 900) + 100}) ${
       Math.floor(Math.random() * 900) + 100
     }-${Math.floor(Math.random() * 9000) + 1000}`;
 
-    // Get a random scam conversation
-    const conversation = getRandomConversation('scam');
+  // Helper to start a simulated call (scam or safe) in a single place
+  const startSimulatedCall = ({
+    type,
+    number,
+  }: {
+    type: 'scam' | 'safe';
+    number?: string;
+  }) => {
+    const phoneNumber = number ?? generateRandomPhoneNumber();
+    const conversation = getRandomConversation(type);
+    const startTime = new Date();
 
     const newCall: Call = {
       id: Date.now().toString(),
       number: phoneNumber,
-      timestamp: new Date(),
+      timestamp: startTime,
       duration: 0,
-      status: 'scam',
+      status: type,
       risk: conversation.expectedRisk,
     };
 
@@ -1034,47 +1047,27 @@ export default function DashboardPage() {
     setActiveCall({
       number: phoneNumber,
       risk: conversation.expectedRisk,
+      // Start with no keywords – they will be populated by analysis
       keywords: [],
       transcript: conversation.transcript,
-      startTime: new Date(),
+      startTime,
     });
-    // Show full page monitoring in iPhone view when simulating scam call
+    // Always show full page monitoring in iPhone view when a simulated call starts
     setIsFullPageMonitoring(true);
+  };
+
+  const simulateScamCall = () => {
+    // NOTE: Kept for future/manual testing via code – UI buttons are commented out.
+    startSimulatedCall({ type: 'scam' });
   };
 
   const simulateSafeCall = () => {
-    const phoneNumber = `+1 (${Math.floor(Math.random() * 900) + 100}) ${
-      Math.floor(Math.random() * 900) + 100
-    }-${Math.floor(Math.random() * 9000) + 1000}`;
-
-    // Get a random safe conversation
-    const conversation = getRandomConversation('safe');
-
-    const newCall: Call = {
-      id: Date.now().toString(),
-      number: phoneNumber,
-      timestamp: new Date(),
-      duration: Math.floor(Math.random() * 300) + 60, // 1-6 minutes
-      status: 'safe',
-      risk: conversation.expectedRisk,
-    };
-
-    setCalls((prev) => [newCall, ...prev]);
-    setActiveCall({
-      number: phoneNumber,
-      risk: conversation.expectedRisk,
-      keywords: [], // No scam keywords for safe calls
-      transcript: conversation.transcript,
-      startTime: new Date(),
-    });
-    // Show full page monitoring in iPhone view when simulating safe call
-    setIsFullPageMonitoring(true);
+    // NOTE: Kept for future/manual testing via code – UI buttons are commented out.
+    startSimulatedCall({ type: 'safe' });
   };
 
   const simulateIncomingCall = () => {
-    const phoneNumber = `+1 (${Math.floor(Math.random() * 900) + 100}) ${
-      Math.floor(Math.random() * 900) + 100
-    }-${Math.floor(Math.random() * 9000) + 1000}`;
+    const phoneNumber = generateRandomPhoneNumber();
 
     setIncomingCall({
       number: phoneNumber,
@@ -1097,20 +1090,15 @@ export default function DashboardPage() {
 
   const handleDivertToAI = () => {
     if (incomingCall) {
-      // Get a random conversation (mix of scam and safe for unknown calls)
-      // For unknown calls, we'll randomly pick between scam and safe
-      const isScam = Math.random() > 0.3; // 70% chance it's a scam for unknown numbers
-      const conversation = getRandomConversation(isScam ? 'scam' : 'safe');
-      const startTime = new Date();
+      // Alternate deterministically between scam and safe calls for each diverted call
+      const nextType: 'scam' | 'safe' =
+        lastDivertType === 'scam' ? 'safe' : 'scam';
+      setLastDivertType(nextType);
 
-      setActiveCall({
+      startSimulatedCall({
+        type: nextType,
         number: incomingCall.number,
-        risk: conversation.expectedRisk,
-        keywords: [],
-        transcript: conversation.transcript,
-        startTime,
       });
-      setIsFullPageMonitoring(true);
     }
     setIncomingCall(null);
   };
@@ -1254,8 +1242,15 @@ export default function DashboardPage() {
 
       {/* Simulation Buttons */}
       <div className="pt-4">
-        <h3 className="text-lg font-semibold text-white mb-4">Test Features</h3>
+        <h3 className="text-lg font-semibold text-white mb-4">
+          Test Features
+        </h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* 
+            NOTE: The explicit "Simulate Scam" and "Simulate Safe" buttons have been
+            removed from the UI per request, but the underlying handlers remain
+            available for future/manual testing. 
+          
           <button
             onClick={simulateScamCall}
             disabled={!!activeCall || !!incomingCall}
@@ -1281,6 +1276,7 @@ export default function DashboardPage() {
               Simulate Safe
             </span>
           </button>
+          */}
 
           <button
             onClick={simulateIncomingCall}
@@ -1298,7 +1294,9 @@ export default function DashboardPage() {
       </div>
 
       <p className="text-sm lg:text-base text-slate-400 italic pt-2">
-        Use the simulation buttons to test different call scenarios. The mobile view on the right will update in real-time.
+        Use the Incoming Call button to test call scenarios. The mobile view on
+        the right will update in real-time, and diverting to AI will alternate
+        between scam and safe transcripts.
       </p>
     </>
   );
