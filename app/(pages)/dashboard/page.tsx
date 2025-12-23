@@ -89,7 +89,7 @@ function DashboardContent({
 }: DashboardContentProps) {
   return (
     <AppLayout fullWidth>
-      <div className="relative flex flex-1 flex-col z-10 h-full overflow-y-auto scrollbar-hide pb-24">
+      <div className="relative flex flex-1 flex-col z-10 h-full overflow-y-auto scrollbar-hide">
         {/* Active Call Monitoring Card - Only show when not in full-page mode */}
         {activeCall && !isFullPageMonitoring && (
           <div className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl p-4 mb-6 shadow-lg shadow-black/20 backdrop-blur-sm">
@@ -349,7 +349,8 @@ function FullPageMonitoringContent({
 }: FullPageMonitoringContentProps) {
   return (
     <div className="relative flex flex-col h-full w-full overflow-hidden bg-black">
-      <div className="relative flex flex-1 flex-col z-10 h-full overflow-y-auto scrollbar-hide">
+      {/* Scrollable Content Area */}
+      <div className="relative flex flex-1 flex-col z-10 overflow-y-auto scrollbar-hide pb-24">
         {/* Background Pattern */}
         <div
           className="absolute inset-0 opacity-[0.15] pointer-events-none"
@@ -365,7 +366,7 @@ function FullPageMonitoringContent({
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[40%] bg-red-500/10 rounded-full blur-[120px] pointer-events-none"></div>
 
         {/* Header */}
-        <div className="sticky top-0 bg-black/80 backdrop-blur-md border-b border-slate-800/50 z-20 p-4">
+        <div className="sticky top-0 bg-black/80 backdrop-blur-md border-b border-slate-800/50 z-20 p-4 pt-10">
           <div className="flex justify-between items-center w-full">
             <div className="flex items-center gap-2">
               <div
@@ -467,7 +468,8 @@ function FullPageMonitoringContent({
               </span>
               Live Transcript
             </h3>
-            <div className="space-y-3 max-h-[300px] overflow-y-auto scrollbar-hide">
+            {/* Increased height to show more transcript content while remaining scrollable */}
+            <div className="space-y-3 max-h-[400px] overflow-y-auto scrollbar-hide">
               {visibleTranscript.length === 0 ? (
                 <div className="text-center py-6">
                   <div className="inline-flex items-center gap-2 text-slate-400 text-xs">
@@ -515,19 +517,19 @@ function FullPageMonitoringContent({
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Fixed Go to Dashboard Button at Bottom */}
-        <div className="sticky bottom-0 bg-black/90 backdrop-blur-md border-t border-slate-800/50 z-30 p-3 mt-auto">
-          <button
-            onClick={onGoToDashboard}
-            className="w-full bg-slate-800/90 hover:bg-slate-700/90 border border-slate-600/50 text-white font-semibold py-2.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg text-xs"
-          >
-            <span className="material-symbols-outlined text-sm">
-              dashboard
-            </span>
-            Go to Dashboard
-          </button>
-        </div>
+      {/* Fixed Go to Dashboard Button at Bottom */}
+      <div className="absolute bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-slate-800/50 z-30 p-3">
+        <button
+          onClick={onGoToDashboard}
+          className="w-full bg-slate-800/90 hover:bg-slate-700/90 border border-slate-600/50 text-white font-semibold py-2.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg text-xs"
+        >
+          <span className="material-symbols-outlined text-sm">
+            dashboard
+          </span>
+          Go to Dashboard
+        </button>
       </div>
     </div>
   );
@@ -1293,8 +1295,8 @@ export default function DashboardPage() {
                   <div className="relative w-full h-full bg-[#0B1121] rounded-[2.5rem] overflow-hidden">
                     {/* iPhone Screen Content Container */}
                     <div className="absolute inset-0 w-full h-full overflow-hidden">
-                      {/* Scale down slightly so full width (including nav & tabs) is visible */}
-                      <div className={`w-full h-full origin-top ${incomingCall ? '' : 'scale-[0.92]'}`}>
+                      {/* Full screen content - no scaling needed */}
+                      <div className="w-full h-full">
                         {incomingCall ? (
                           <IncomingCallContent
                             incomingCall={incomingCall}

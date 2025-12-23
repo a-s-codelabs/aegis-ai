@@ -10,12 +10,20 @@ const navItems = [
   { path: '/settings', icon: 'settings', label: 'Settings' },
 ];
 
-export function BottomNavbar() {
+interface BottomNavbarProps {
+  isFullWidth?: boolean;
+}
+
+export function BottomNavbar({ isFullWidth = false }: BottomNavbarProps) {
   const pathname = usePathname();
 
+  // Use absolute positioning when inside iPhone mockup (fullWidth), fixed otherwise
+  const positionClasses = isFullWidth
+    ? 'absolute bottom-0 left-0 right-0 w-full bg-[#151e32]/95 backdrop-blur-lg border-t border-gray-800 pt-2 z-50'
+    : 'fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg bg-[#151e32]/95 backdrop-blur-lg border-t border-gray-800 pb-safe pt-2 z-50';
+
   return (
-    // NOTE: The nav is centered and constrained to a "mobile" width on larger screens.
-    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg bg-[#151e32]/95 backdrop-blur-lg border-t border-gray-800 pb-safe pt-2 z-50">
+    <nav className={positionClasses}>
       <div className="flex justify-around items-center px-2 pb-2">
         {navItems.map((item) => {
           // Dashboard is active for both /dashboard and /dashboard/admin

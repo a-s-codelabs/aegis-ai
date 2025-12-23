@@ -13,9 +13,10 @@ interface UserSession {
 interface TopNavbarProps {
   title?: string;
   icon?: string;
+  isFullWidth?: boolean;
 }
 
-export function TopNavbar({ title = 'Anti-Scam', icon = 'shield' }: TopNavbarProps) {
+export function TopNavbar({ title = 'Anti-Scam', icon = 'shield', isFullWidth = false }: TopNavbarProps) {
   const router = useRouter();
   const [userSession, setUserSession] = useState<UserSession | null>(null);
   const [userInitials, setUserInitials] = useState('U');
@@ -48,10 +49,13 @@ export function TopNavbar({ title = 'Anti-Scam', icon = 'shield' }: TopNavbarPro
     }
   }, []);
 
+  // Use absolute positioning when inside iPhone mockup (fullWidth), fixed otherwise
+  const positionClasses = isFullWidth
+    ? 'absolute top-0 left-0 right-0 w-full z-50 bg-[#0B1121]/90 backdrop-blur-md border-b border-gray-800'
+    : 'fixed top-4 left-1/2 -translate-x-1/2 w-full max-w-lg z-50 bg-[#0B1121]/90 backdrop-blur-md border-b border-gray-800 rounded-2xl';
+
   return (
-    // NOTE: The nav is centered and constrained to a "mobile" width on larger screens.
-    // Adjusted from top-0 to top-4 to move the navbar slightly down from the very top edge.
-    <header className="fixed top-4 left-1/2 -translate-x-1/2 w-full max-w-lg z-50 bg-[#0B1121]/90 backdrop-blur-md border-b border-gray-800 rounded-2xl">
+    <header className={positionClasses}>
       <div className="px-5 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-[#26d9bb]/20 rounded-full flex items-center justify-center">
