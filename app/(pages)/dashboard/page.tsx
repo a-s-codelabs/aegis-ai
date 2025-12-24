@@ -11,6 +11,7 @@ import {
   ALL_CONVERSATIONS,
   getRandomConversation,
 } from '@/lib/utils/call-conversations';
+import { ElevenLabsClient } from '@/lib/utils/elevenlabs-client';
 
 interface UserSession {
   userId: string;
@@ -45,6 +46,7 @@ interface DashboardContentProps {
     scamBlocked: number;
     safeCalls: number;
   };
+  blocklist: string[];
   onEndCall: () => void;
   onViewFullMonitoring: () => void;
   getCallIcon: (status: Call['status']) => string;
@@ -71,6 +73,8 @@ interface FullPageMonitoringContentProps {
 interface IncomingCallContentProps {
   incomingCall: {
     number: string;
+    purpose?: string;
+    isSafe?: boolean;
   };
   onDecline: () => void;
   onDivertToAI: () => void;
@@ -82,6 +86,7 @@ function DashboardContent({
   isFullPageMonitoring,
   calls,
   stats,
+  blocklist,
   onEndCall,
   onViewFullMonitoring,
   getCallIcon,
@@ -330,7 +335,17 @@ function DashboardContent({
                       <span className="text-slate-400 font-bold">--</span>
                     </span>
                   )}
-                  {getCallStatusBadge(call.status, call.risk)}
+                  <div className="flex items-center gap-1">
+                    {getCallStatusBadge(call.status, call.risk)}
+                    {blocklist.includes(call.number) && (
+                      <span className="px-1.5 py-0.5 bg-red-600/20 border border-red-500/40 text-red-400 text-[9px] font-bold rounded flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[10px]">
+                          block
+                        </span>
+                        Blocked by AI
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -367,7 +382,7 @@ function FullPageMonitoringContent({
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[40%] bg-red-500/10 rounded-full blur-[120px] pointer-events-none"></div>
 
         {/* Header */}
-        <div className="sticky top-0 bg-black/80 backdrop-blur-md border-b border-slate-800/50 z-20 p-4 pt-10">
+        <div className="sticky top-0 bg-black/80 backdrop-blur-md border-b border-slate-800/50 z-20 p-4 pt-10 space-y-2">
           <div className="flex justify-between items-center w-full">
             <div className="flex items-center gap-2">
               <div
@@ -408,6 +423,23 @@ function FullPageMonitoringContent({
               End
             </button>
           </div>
+
+          {/* Safe handoff banner when risk is clearly low */}
+          {activeCall.risk < 30 && (
+            <div className="mt-1 flex items-center justify-between rounded-lg border border-emerald-500/40 bg-emerald-900/30 px-3 py-2 text-[11px] text-emerald-200">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-xs text-emerald-300">
+                  verified_user
+                </span>
+                <p className="font-semibold">
+                  AI has confirmed this caller looks safe. The call is now handed back to you.
+                </p>
+              </div>
+              <span className="hidden sm:inline-flex text-[10px] text-emerald-300/80">
+                You can take over the conversation at any time.
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Risk Level Section */}
@@ -542,6 +574,8 @@ function IncomingCallContent({
   onDivertToAI,
   onAccept,
 }: IncomingCallContentProps) {
+  const isSafeCall = incomingCall.isSafe === true;
+  const callPurpose = incomingCall.purpose || '';
   return (
     <div className="absolute inset-0 flex flex-col h-full w-full overflow-hidden bg-black">
       <div className="relative flex flex-1 flex-col items-center justify-between h-full w-full overflow-hidden">
@@ -609,17 +643,43 @@ function IncomingCallContent({
               {incomingCall.number}
             </h1>
 
-            {/* Unknown Number Badge */}
-            <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-amber-400 bg-amber-950/40 border border-amber-500/30 px-3 py-1.5 rounded-full w-fit mx-auto backdrop-blur-md shadow-lg">
-              <span className="material-symbols-outlined text-sm">
-                warning
-              </span>
-              <span>Unknown Number</span>
-            </div>
+            {/* Safe Call Badge or Unknown Number Badge */}
+            {isSafeCall ? (
+              <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-green-400 bg-green-950/40 border border-green-500/30 px-3 py-1.5 rounded-full w-fit mx-auto backdrop-blur-md shadow-lg">
+                <span className="material-symbols-outlined text-sm">
+                  verified
+                </span>
+                <span>Verified Safe</span>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-amber-400 bg-amber-950/40 border border-amber-500/30 px-3 py-1.5 rounded-full w-fit mx-auto backdrop-blur-md shadow-lg">
+                <span className="material-symbols-outlined text-sm">
+                  warning
+                </span>
+                <span>Unknown Number</span>
+              </div>
+            )}
 
-            <p className="text-xs text-zinc-500 font-medium tracking-wide">
-              Caller not in contacts
-            </p>
+            {/* Safe Call Message or Default Message */}
+            {isSafeCall ? (
+              <div className="space-y-2">
+                <p className="text-sm text-green-400 font-medium tracking-wide">
+                  We detected this caller is not a scammer
+                </p>
+                {callPurpose && (
+                  <p className="text-xs text-zinc-400 font-normal italic max-w-xs mx-auto">
+                    They called for: "{callPurpose}"
+                  </p>
+                )}
+                <p className="text-xs text-zinc-500 font-medium tracking-wide">
+                  So diverted to you
+                </p>
+              </div>
+            ) : (
+              <p className="text-xs text-zinc-500 font-medium tracking-wide">
+                Caller not in contacts
+              </p>
+            )}
           </div>
         </div>
 
@@ -785,10 +845,14 @@ export default function DashboardPage() {
   const ringtoneAudioRef = useRef<HTMLAudioElement | null>(null);
   const [incomingCall, setIncomingCall] = useState<{
     number: string;
+    purpose?: string;
+    isSafe?: boolean;
   } | null>(null);
+  const hasTriggeredSafeReRingRef = useRef<boolean>(false);
   const [lastDivertType, setLastDivertType] = useState<'scam' | 'safe'>(
     'safe'
   );
+  const [blocklist, setBlocklist] = useState<string[]>([]);
   const [calls, setCalls] = useState<Call[]>([
     {
       id: '1',
@@ -814,6 +878,8 @@ export default function DashboardPage() {
       status: 'unknown',
     },
   ]);
+  // ElevenLabs AI voice session (ConvAI) - manages \"AI assistant\" voice greeting
+  const aiVoiceClientRef = useRef<ElevenLabsClient | null>(null);
 
   // Helper: lazily create & configure the shared ringtone audio instance
   const ensureRingtoneAudio = () => {
@@ -1002,9 +1068,14 @@ export default function DashboardPage() {
       clearTimeout(analysisTimeoutRef.current);
     }
 
+    // Capture activeCall.number in closure to avoid dependency issues
+    const currentCallNumber = activeCall.number;
+
     analysisTimeoutRef.current = setTimeout(async () => {
       try {
         const result = await analyzeConversation(visibleTranscript);
+        const isSafe = result.scamScore < 60; // Safe if score is below 60
+        
         setActiveCall((prev) => {
           if (!prev) return prev;
           return {
@@ -1013,6 +1084,64 @@ export default function DashboardPage() {
             keywords: result.keywords,
           };
         });
+
+        // If call is detected as safe and we haven't triggered re-ring yet, do it now
+        // Require at least 2 transcript entries to ensure we have enough context
+        if (isSafe && !hasTriggeredSafeReRingRef.current && visibleTranscript.length >= 2) {
+          hasTriggeredSafeReRingRef.current = true;
+          
+          // Extract call purpose
+          try {
+            const purposeResponse = await fetch('/api/analyze-transcript', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                transcript: visibleTranscript,
+                extractPurpose: true,
+              }),
+            });
+
+            const purposeData = await purposeResponse.json();
+            const purpose = purposeData.purpose || 'General inquiry';
+
+            // End the current monitoring call first
+            // Stop any active ElevenLabs AI voice session
+            if (aiVoiceClientRef.current) {
+              aiVoiceClientRef.current.stop();
+              aiVoiceClientRef.current = null;
+            }
+
+            // Immediately ring the user again with safe call info
+            setIncomingCall({
+              number: currentCallNumber,
+              purpose,
+              isSafe: true,
+            });
+            
+            // Close the monitoring view
+            setIsFullPageMonitoring(false);
+            
+            // Start ringtone
+            startRingtone();
+          } catch (error) {
+            console.error('[Dashboard] Error extracting purpose:', error);
+            // Still trigger re-ring even if purpose extraction fails
+            // End the current monitoring call first
+            if (aiVoiceClientRef.current) {
+              aiVoiceClientRef.current.stop();
+              aiVoiceClientRef.current = null;
+            }
+            
+            setIncomingCall({
+              number: currentCallNumber,
+              purpose: 'General inquiry',
+              isSafe: true,
+            });
+            
+            setIsFullPageMonitoring(false);
+            startRingtone();
+          }
+        }
       } catch (error) {
         console.error('[Dashboard] Error analyzing conversation:', error);
       }
@@ -1044,6 +1173,19 @@ export default function DashboardPage() {
       };
 
       setCalls((prev) => [newCall, ...prev]);
+
+      // Add high-risk callers to an in-memory blocklist for this demo session
+      if (isScam) {
+        setBlocklist((prev) =>
+          prev.includes(activeCall.number) ? prev : [activeCall.number, ...prev]
+        );
+      }
+    }
+
+    // Stop any active ElevenLabs AI voice session when the call ends
+    if (aiVoiceClientRef.current) {
+      aiVoiceClientRef.current.stop();
+      aiVoiceClientRef.current = null;
     }
 
     // Cleanup
@@ -1061,7 +1203,9 @@ export default function DashboardPage() {
   };
 
   const handleTakeOverCall = () => {
-    // End AI monitoring and return to normal dashboard
+    // End AI monitoring and return to normal dashboard.
+    // For the hackathon demo, we treat this as the human taking over the call,
+    // so we stop the AI voice session and end monitoring.
     endCall();
   };
 
@@ -1082,6 +1226,9 @@ export default function DashboardPage() {
     const phoneNumber = number ?? generateRandomPhoneNumber();
     const conversation = getRandomConversation(type);
     const startTime = new Date();
+
+    // Reset the safe re-ring flag when starting a new call
+    hasTriggeredSafeReRingRef.current = false;
 
     const newCall: Call = {
       id: Date.now().toString(),
@@ -1143,6 +1290,13 @@ export default function DashboardPage() {
 
   const handleDivertToAI = () => {
     if (incomingCall) {
+      // If this is already a safe call being re-rung, don't divert again
+      // Just accept it directly
+      if (incomingCall.isSafe) {
+        handleAcceptCall();
+        return;
+      }
+
       // Alternate deterministically between scam and safe calls for each diverted call
       const nextType: 'scam' | 'safe' =
         lastDivertType === 'scam' ? 'safe' : 'scam';
@@ -1152,6 +1306,20 @@ export default function DashboardPage() {
         type: nextType,
         number: incomingCall.number,
       });
+
+      // Lazily start an ElevenLabs ConvAI session to greet the caller.
+      // This is where the AI assistant says:
+      // \"This is your AI assistant speaking, how can I help you today?\"
+      if (typeof window !== 'undefined') {
+        if (!aiVoiceClientRef.current) {
+          aiVoiceClientRef.current = new ElevenLabsClient({
+            // Optional local fallback greeting; add the file under /public/sounds if desired.
+            // fallbackGreetingAudioUrl: '/sounds/ai-greeting.mp3',
+          });
+        }
+        // Fire and forget; errors are logged inside the client.
+        void aiVoiceClientRef.current.start();
+      }
     }
     // Stop ringtone when call is diverted to AI protection
     stopRingtone();
@@ -1182,9 +1350,9 @@ export default function DashboardPage() {
   }, []);
 
   const stats = {
-    totalCalls: 12,
-    scamBlocked: 4,
-    safeCalls: 8,
+    totalCalls: calls.length,
+    scamBlocked: calls.filter((c) => c.status === 'scam').length,
+    safeCalls: calls.filter((c) => c.status === 'safe').length,
   };
 
   const getCallIcon = (status: Call['status']) => {
@@ -1257,6 +1425,7 @@ export default function DashboardPage() {
       isFullPageMonitoring={isFullPageMonitoring}
       calls={calls}
       stats={stats}
+      blocklist={blocklist}
       onEndCall={endCall}
       onViewFullMonitoring={() => setIsFullPageMonitoring(true)}
       getCallIcon={getCallIcon}

@@ -84,3 +84,56 @@ export function getRiskBgColor(scamScore: number): string {
   return 'bg-red-500';
 }
 
+/**
+ * Extracts the call purpose from a transcript
+ * Uses AI to summarize the caller's intent in a concise way
+ * @param transcript - Array of transcript entries
+ * @returns Promise with the call purpose/summary
+ */
+export async function extractCallPurpose(
+  transcript: TranscriptEntry[]
+): Promise<string> {
+  try {
+    // Get caller messages only (filter out AI Agent responses)
+    const callerMessages = transcript
+      .filter((entry) => entry.speaker === 'Caller')
+      .map((entry) => entry.text)
+      .join(' ');
+
+    if (!callerMessages.trim()) {
+      return 'General inquiry';
+    }
+
+    // Use AI to extract purpose (call the analyze-transcript API with a purpose extraction prompt)
+    const response = await fetch('/api/analyze-transcript', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        transcript,
+        extractPurpose: true, // Flag to indicate we want purpose extraction
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Purpose extraction failed: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    return result.purpose || 'General inquiry';
+  } catch (error) {
+    console.error('[ConversationAnalysis] Error extracting purpose:', error);
+    // Fallback: use first caller message (first sentence or first 100 chars)
+    const firstCallerMessage = transcript.find(
+      (entry) => entry.speaker === 'Caller'
+    )?.text;
+    
+    if (!firstCallerMessage) {
+      return 'General inquiry';
+    }
+    
+    // Extract first sentence or first 100 characters
+    const firstSentence = firstCallerMessage.split('.')[0] || firstCallerMessage.substring(0, 100);
+    return firstSentence.trim().replace(/\.$/, '') || 'General inquiry';
+  }
+}
+
