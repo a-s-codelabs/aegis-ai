@@ -34,29 +34,48 @@ export async function analyzeWithGemini(params: {
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
 
-  const prompt = `You are an expert phone scam detection system.
+  const prompt = `You are an expert phone scam detection system. Analyze ONLY the CALLER's speech and behavior patterns.
 
-Analyze this phone call transcript for scam indicators and respond with a JSON object only.
+IMPORTANT: Focus ONLY on what the CALLER says. Ignore AI agent responses. Base your analysis purely on the caller's conversation patterns, word choice, and behavior.
 
-Transcript:
+Caller's Conversation:
 ${transcript}
 
-Common scam patterns to pay special attention to:
+Common scam patterns to detect:
 ${scamPatterns.join(', ')}
 
-Look for:
-- Urgency or threats
-- Requests for personal/financial information
-- Impersonation of authorities or companies
-- Pressure tactics
-- Payment requests (gift cards, wire transfers, cryptocurrency)
+Analyze the CALLER for these scam indicators:
+- Urgency, threats, or pressure tactics ("act now", "immediately", "you'll be arrested")
+- Requests for personal/financial information (SSN, bank account, credit card, passwords)
+- Impersonation attempts (claiming to be IRS, Microsoft, bank, government)
+- Payment requests (gift cards, wire transfers, bitcoin, cryptocurrency, prepaid cards)
+- Suspicious claims (you won a prize, owe money, account suspended, refund available)
+- Emotional manipulation (family emergency, legal trouble, account closure)
+- Unusual payment methods (gift cards, wire transfers, cryptocurrency)
+- Requests to download software or grant remote access
+
+Safe caller indicators:
+- Professional, calm communication
+- Legitimate business inquiries
+- Appointment confirmations
+- Customer service follow-ups
+- No pressure or urgency
+- No requests for sensitive information
+
+Score guidelines:
+- 0-20: Very safe (normal business/personal call)
+- 21-40: Low risk (slightly suspicious but likely safe)
+- 41-60: Medium risk (suspicious patterns detected)
+- 61-80: High risk (strong scam indicators)
+- 81-100: Very high risk (clear scam attempt)
 
 Respond ONLY with valid minified JSON in this exact shape:
 {"scamScore": 0-100, "keywords": ["keyword1","keyword2"]}
 
 Examples:
-{"scamScore": 75, "keywords": ["urgent", "wire transfer"]}
-{"scamScore": 5, "keywords": []}
+{"scamScore": 85, "keywords": ["wire transfer", "urgent", "IRS"]}
+{"scamScore": 10, "keywords": []}
+{"scamScore": 45, "keywords": ["refund"]}
 
 Do not include any explanation or extra text.`;
 

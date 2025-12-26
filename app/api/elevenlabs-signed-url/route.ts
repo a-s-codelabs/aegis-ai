@@ -49,10 +49,32 @@ export async function GET() {
         error: errorData,
       });
 
+      // Extract nested error message from ElevenLabs API response
+      let errorMessage = errorText;
+      if (errorData.detail) {
+        // Handle nested detail structure: { detail: { message: "...", status: "..." } }
+        if (typeof errorData.detail === 'object' && errorData.detail.message) {
+          errorMessage = errorData.detail.message;
+        } else if (typeof errorData.detail === 'string') {
+          errorMessage = errorData.detail;
+        }
+      } else if (errorData.message) {
+        errorMessage = errorData.message;
+      }
+
+      // Provide user-friendly message for common errors
+      let userFriendlyMessage = errorMessage;
+      if (errorMessage.includes('missing_permissions') || errorMessage.includes('convai_write')) {
+        userFriendlyMessage = 'Your ElevenLabs API key is missing the required "convai_write" permission. Please update your API key in the ElevenLabs dashboard to include ConvAI permissions.';
+      } else if (errorMessage.includes('invalid') || errorMessage.includes('unauthorized')) {
+        userFriendlyMessage = 'Invalid or unauthorized ElevenLabs API key. Please check your ELEVENLABS_API_KEY in your environment variables.';
+      }
+
       return Response.json(
         {
           error: 'Failed to get signed URL from ElevenLabs',
-          details: errorData.message || errorText,
+          details: userFriendlyMessage,
+          rawError: errorMessage,
           status: response.status,
         },
         { status: response.status }
