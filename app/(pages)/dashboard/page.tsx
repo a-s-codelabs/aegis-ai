@@ -12,6 +12,7 @@ import {
   getRandomConversation,
 } from '@/lib/utils/call-conversations';
 import { ElevenLabsClient } from '@/lib/utils/elevenlabs-client';
+import { VoiceSelector, getVoicePreference } from '@/components/voice-selector';
 
 interface UserSession {
   userId: string;
@@ -908,6 +909,7 @@ export default function DashboardPage() {
   const dialogueCountRef = useRef(0);
   const MIN_DIALOGUES_FOR_ANALYSIS = 10; // Minimum dialogues before comprehensive analysis
   const [blocklist, setBlocklist] = useState<string[]>([]);
+  const [voicePreference, setVoicePreference] = useState<'default' | 'female' | 'male'>('default');
   const [calls, setCalls] = useState<Call[]>([
     {
       id: '1',
@@ -997,6 +999,11 @@ export default function DashboardPage() {
       } catch (error) {
         console.error('[Dashboard] Error parsing session:', error);
         router.push('/auth/login');
+      }
+
+      const savedVoice = getVoicePreference();
+      if (savedVoice) {
+        setVoicePreference(savedVoice);
       }
     }
   }, [router]);
@@ -1573,9 +1580,8 @@ export default function DashboardPage() {
         }
 
         aiVoiceClientRef.current = new ElevenLabsClient({
-          // Optional local fallback greeting; add the file under /public/sounds if desired.
-          // fallbackGreetingAudioUrl: '/sounds/ai-greeting.mp3',
-          playbackRate: 0.6, // 60% speed - slower and clearer for better understanding
+          playbackRate: 0.6,
+          voice: voicePreference,
           onUserTranscript: async (text: string) => {
             console.log('[Dashboard] Caller said:', text);
 
@@ -1871,9 +1877,19 @@ export default function DashboardPage() {
   const leftContent = (
     <>
       <div>
-        <h1 className="text-4xl lg:text-5xl font-bold leading-tight tracking-tight text-[#26d9bb] mb-4">
-          Anti-Scam Dashboard
-        </h1>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-4xl lg:text-5xl font-bold leading-tight tracking-tight text-[#26d9bb]">
+            Anti-Scam Dashboard
+          </h1>
+          <VoiceSelector
+            onVoiceChange={(voice) => {
+              setVoicePreference(voice);
+              if (aiVoiceClientRef.current) {
+                aiVoiceClientRef.current.setVoice(voice);
+              }
+            }}
+          />
+        </div>
         <p className="text-lg lg:text-xl text-slate-400 leading-relaxed">
           Monitor and manage your call protection in real-time. View call statistics, recent activity, and active call monitoring.
         </p>

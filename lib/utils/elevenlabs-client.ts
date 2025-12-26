@@ -22,6 +22,10 @@ export interface ElevenLabsClientOptions {
    */
   playbackRate?: number;
   /**
+   * Voice preference: 'default' (Eric), 'female' (Laura), or 'male' (Roger)
+   */
+  voice?: 'default' | 'female' | 'male';
+  /**
    * Callback when caller's speech is transcribed
    */
   onUserTranscript?: (text: string) => void;
@@ -48,6 +52,7 @@ export class ElevenLabsClient {
   private isConnected = false;
   private readonly options: ElevenLabsClientOptions;
   private readonly playbackRate: number;
+  private voicePreference: 'default' | 'female' | 'male';
   private fallbackAudio: HTMLAudioElement | null = null;
   private mediaStream: MediaStream | null = null;
   private audioContext: AudioContext | null = null;
@@ -59,11 +64,25 @@ export class ElevenLabsClient {
 
   constructor(options?: ElevenLabsClientOptions) {
     this.options = options ?? {};
-    // Set playback rate (default 0.75 = 75% speed for slower, clearer speech)
-    this.playbackRate = this.options.playbackRate ?? 0.6; // Default: 60% speed (slower and clearer)
+    this.playbackRate = 0.6;
+    this.voicePreference = this.options.voice ?? 'default';
     if (this.options.fallbackGreetingAudioUrl && typeof window !== 'undefined') {
-      // Preload optional fallback greeting so playback feels instant
       this.fallbackAudio = new Audio(this.options.fallbackGreetingAudioUrl);
+    }
+  }
+
+  setVoice(voice: 'default' | 'female' | 'male') {
+    this.voicePreference = voice;
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      const message: any = { playback_speed: 0.6 };
+      if (voice !== 'default') {
+        message.voice = voice;
+      }
+      try {
+        this.ws.send(JSON.stringify(message));
+      } catch (error) {
+        console.error('[ElevenLabsClient] Error sending voice preference:', error);
+      }
     }
   }
 
@@ -287,21 +306,29 @@ export class ElevenLabsClient {
           console.log('[ElevenLabsClient] 📡 WebSocket URL:', data.signedUrl.substring(0, 50) + '...');
         }
 
-        // Trigger conversation start callback
+        if (this.ws) {
+          const voiceMessage: any = { playback_speed: 0.6 };
+          if (this.voicePreference !== 'default') {
+            voiceMessage.voice = this.voicePreference;
+          }
+          try {
+            this.ws.send(JSON.stringify(voiceMessage));
+          } catch (error) {
+            console.error('[ElevenLabsClient] Error sending voice preference:', error);
+          }
+        }
+
         this.options.onConversationStart?.();
 
-        // Start audio streaming IMMEDIATELY (this captures microphone and sends to ElevenLabs)
         console.log('[ElevenLabsClient] 🎤 Starting microphone audio streaming...');
         console.log('[ElevenLabsClient] 📊 Audio format: PCM16, 24kHz, Mono');
         console.log('[ElevenLabsClient] 📝 Message format: { "user_audio_chunk": "<base64_pcm16>" }');
         
-        // Start audio streaming - ensure it happens
         try {
           this.startAudioStreaming();
           console.log('[ElevenLabsClient] ✅ Audio streaming started. Speak into your microphone now!');
         } catch (streamError) {
           console.error('[ElevenLabsClient] ❌ Failed to start audio streaming:', streamError);
-          // Retry after small delay
           setTimeout(() => {
             try {
               this.startAudioStreaming();
@@ -313,7 +340,6 @@ export class ElevenLabsClient {
           }, 500);
         }
 
-        // Play fallback greeting if available
         if (this.fallbackAudio) {
           this.fallbackAudio.currentTime = 0;
           void this.fallbackAudio

@@ -4,10 +4,11 @@ import { AppLayout } from '@/components/layout/app-layout';
 import { SplitLayoutWithIPhone } from '@/components/layout/split-layout-with-iphone';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { VoiceSelector, getVoicePreference } from '@/components/voice-selector';
 
 type SensitivityLevel = 'LOW' | 'STANDARD' | 'HIGH';
 type VoiceStyle = 'Direct' | 'Neutral' | 'Empathetic';
-type VoiceAgent = 'Rachel' | 'Josh';
+type VoicePreference = 'default' | 'female' | 'male';
 
 export default function ManagePage() {
   const router = useRouter();
@@ -18,7 +19,7 @@ export default function ManagePage() {
   const [voiceStyle, setVoiceStyle] = useState<VoiceStyle>('Empathetic');
   const [voiceStyleValue, setVoiceStyleValue] = useState(65); // 0-33: Direct, 34-66: Neutral, 67-100: Empathetic
   const [selectedVoiceAgent, setSelectedVoiceAgent] =
-    useState<VoiceAgent>('Rachel');
+    useState<VoicePreference>('default');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -27,6 +28,8 @@ export default function ManagePage() {
         router.push('/auth/login');
         return;
       }
+      const savedVoice = getVoicePreference();
+      setSelectedVoiceAgent(savedVoice);
     }
   }, [router]);
 
@@ -58,6 +61,20 @@ export default function ManagePage() {
 
   const handleVoiceStyleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setVoiceStyleValue(Number(e.target.value));
+  };
+
+  const handleVoiceAgentChange = async (agent: VoicePreference) => {
+    setSelectedVoiceAgent(agent);
+    localStorage.setItem('voicePreference', agent);
+    try {
+      await fetch('/api/user/voice-preference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voice: agent }),
+      });
+    } catch (error) {
+      console.error('Failed to sync voice preference:', error);
+    }
   };
 
   // Manage Content Component (to be rendered inside iPhone)
@@ -261,46 +278,37 @@ export default function ManagePage() {
                 <label className="text-[11px] text-[#94a3b8] font-bold uppercase tracking-widest">
                   AI Voice Agent
                 </label>
-                <button className="flex items-center gap-1 text-[11px] text-[#26d9bb] hover:text-white transition-colors font-medium">
-                  <span className="material-symbols-outlined text-[14px]">
-                    play_circle
-                  </span>{' '}
-                  Listen Preview
-                </button>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Rachel - Selected */}
+              <div className="flex flex-col gap-3">
+                {/* Default Voice */}
                 <button
-                  onClick={() => setSelectedVoiceAgent('Rachel')}
-                  className={`relative p-3 rounded-xl border transition-all shadow-[0_0_20px_rgba(38,217,187,0.05)] ${
-                    selectedVoiceAgent === 'Rachel'
+                  onClick={() => handleVoiceAgentChange('default')}
+                  className={`relative p-2 rounded-lg border transition-all shadow-[0_0_20px_rgba(38,217,187,0.05)] ${
+                    selectedVoiceAgent === 'default'
                       ? 'border-[#26d9bb] bg-[#26d9bb]/10 cursor-pointer'
                       : 'border-white/5 bg-[#1e2936] cursor-pointer hover:bg-white/5'
                   }`}
                 >
-                  <div className="flex items-center gap-3 mb-2 pr-6">
+                  <div className="flex items-center gap-2 pr-6">
                     <div
-                      className={`h-9 w-9 rounded-full border flex items-center justify-center ${
-                        selectedVoiceAgent === 'Rachel'
+                      className={`h-7 w-7 rounded-full border flex items-center justify-center ${
+                        selectedVoiceAgent === 'default'
                           ? 'bg-[#1e2936] border-[#26d9bb]/30 text-[#26d9bb] shadow-sm'
                           : 'bg-[#0B1121] border-white/5 text-[#94a3b8]'
                       }`}
                     >
-                      <span className="material-symbols-outlined text-lg">
-                        face_3
+                      <span className="material-symbols-outlined text-sm">
+                        record_voice_over
                       </span>
                     </div>
                     <div>
-                      <div className="text-white text-xs font-bold">Rachel</div>
-                      <div className="text-[#26d9bb]/70 text-[10px] font-medium">
-                        Professional
-                      </div>
+                      <div className="text-white text-xs font-bold">Default Voice</div>
                     </div>
                   </div>
-                  {selectedVoiceAgent === 'Rachel' && (
-                    <div className="absolute top-2 right-2 text-[#26d9bb] drop-shadow-[0_0_8px_rgba(38,217,187,0.6)]">
+                  {selectedVoiceAgent === 'default' && (
+                    <div className="absolute top-1.5 right-1.5 text-[#26d9bb] drop-shadow-[0_0_8px_rgba(38,217,187,0.6)]">
                       <span
-                        className="material-symbols-outlined text-[18px]"
+                        className="material-symbols-outlined text-[16px]"
                         style={{ fontVariationSettings: '"FILL" 1' }}
                       >
                         check_circle
@@ -309,52 +317,88 @@ export default function ManagePage() {
                   )}
                 </button>
 
-                {/* Josh - Unselected */}
+                {/* Female - Laura */}
                 <button
-                  onClick={() => setSelectedVoiceAgent('Josh')}
-                  className={`relative p-3 rounded-xl border transition-all group ${
-                    selectedVoiceAgent === 'Josh'
+                  onClick={() => handleVoiceAgentChange('female')}
+                  className={`relative p-2 rounded-lg border transition-all group ${
+                    selectedVoiceAgent === 'female'
                       ? 'border-[#26d9bb] bg-[#26d9bb]/10 shadow-[0_0_20px_rgba(38,217,187,0.05)] cursor-pointer'
                       : 'border-white/5 bg-[#1e2936] cursor-pointer hover:bg-white/5'
                   }`}
                 >
-                  <div className="flex items-center gap-3 mb-2 pr-6">
+                  <div className="flex items-center gap-2 pr-6">
                     <div
-                      className={`h-9 w-9 rounded-full border flex items-center justify-center ${
-                        selectedVoiceAgent === 'Josh'
+                      className={`h-7 w-7 rounded-full border flex items-center justify-center ${
+                        selectedVoiceAgent === 'female'
                           ? 'bg-[#1e2936] border-[#26d9bb]/30 text-[#26d9bb] shadow-sm'
                           : 'bg-[#0B1121] border-white/5 flex items-center justify-center text-[#94a3b8] group-hover:text-white transition-colors'
                       }`}
                     >
-                      <span className="material-symbols-outlined text-lg">
+                      <span className="material-symbols-outlined text-sm">
+                        face_3
+                      </span>
+                    </div>
+                    <div>
+                      <div
+                        className={`text-xs font-medium group-hover:text-white transition-colors ${
+                          selectedVoiceAgent === 'female'
+                            ? 'text-white font-bold'
+                            : 'text-gray-300'
+                        }`}
+                      >
+                        Female - Laura
+                      </div>
+                    </div>
+                  </div>
+                  {selectedVoiceAgent === 'female' && (
+                    <div className="absolute top-1.5 right-1.5 text-[#26d9bb] drop-shadow-[0_0_8px_rgba(38,217,187,0.6)]">
+                      <span
+                        className="material-symbols-outlined text-[16px]"
+                        style={{ fontVariationSettings: '"FILL" 1' }}
+                      >
+                        check_circle
+                      </span>
+                    </div>
+                  )}
+                </button>
+
+                {/* Male - Roger */}
+                <button
+                  onClick={() => handleVoiceAgentChange('male')}
+                  className={`relative p-2 rounded-lg border transition-all group ${
+                    selectedVoiceAgent === 'male'
+                      ? 'border-[#26d9bb] bg-[#26d9bb]/10 shadow-[0_0_20px_rgba(38,217,187,0.05)] cursor-pointer'
+                      : 'border-white/5 bg-[#1e2936] cursor-pointer hover:bg-white/5'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 pr-6">
+                    <div
+                      className={`h-7 w-7 rounded-full border flex items-center justify-center ${
+                        selectedVoiceAgent === 'male'
+                          ? 'bg-[#1e2936] border-[#26d9bb]/30 text-[#26d9bb] shadow-sm'
+                          : 'bg-[#0B1121] border-white/5 flex items-center justify-center text-[#94a3b8] group-hover:text-white transition-colors'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-sm">
                         face_6
                       </span>
                     </div>
                     <div>
                       <div
                         className={`text-xs font-medium group-hover:text-white transition-colors ${
-                          selectedVoiceAgent === 'Josh'
+                          selectedVoiceAgent === 'male'
                             ? 'text-white font-bold'
                             : 'text-gray-300'
                         }`}
                       >
-                        Josh
-                      </div>
-                      <div
-                        className={`text-[10px] group-hover:text-gray-400 transition-colors ${
-                          selectedVoiceAgent === 'Josh'
-                            ? 'text-[#26d9bb]/70 font-medium'
-                            : 'text-gray-600'
-                        }`}
-                      >
-                        Friendly
+                        Male - Roger
                       </div>
                     </div>
                   </div>
-                  {selectedVoiceAgent === 'Josh' && (
-                    <div className="absolute top-2 right-2 text-[#26d9bb] drop-shadow-[0_0_8px_rgba(38,217,187,0.6)]">
+                  {selectedVoiceAgent === 'male' && (
+                    <div className="absolute top-1.5 right-1.5 text-[#26d9bb] drop-shadow-[0_0_8px_rgba(38,217,187,0.6)]">
                       <span
-                        className="material-symbols-outlined text-[18px]"
+                        className="material-symbols-outlined text-[16px]"
                         style={{ fontVariationSettings: '"FILL" 1' }}
                       >
                         check_circle
@@ -363,9 +407,6 @@ export default function ManagePage() {
                   )}
                 </button>
               </div>
-              <p className="text-[10px] text-[#94a3b8] mt-2 text-right italic opacity-60">
-                More voices available in Premium
-              </p>
             </div>
 
             {/* Voice Style */}
@@ -411,28 +452,6 @@ export default function ManagePage() {
                   <span>Empathetic</span>
                 </div>
               </div>
-            </div>
-
-            {/* Custom Prompting Guide */}
-            <div className="mt-4 pt-4 border-t border-white/5">
-              <button className="flex items-start gap-3 group hover:bg-white/5 -m-2 p-3 rounded-lg transition-colors w-full text-left">
-                <div className="mt-0.5 p-1 rounded-md bg-yellow-500/10 text-yellow-500">
-                  <span className="material-symbols-outlined text-[16px]">
-                    lightbulb
-                  </span>
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs text-gray-200 font-medium group-hover:text-[#26d9bb] transition-colors">
-                    Custom Prompting Guide
-                  </p>
-                  <p className="text-[10px] text-[#94a3b8] leading-tight mt-0.5">
-                    Learn how to instruct the AI for specific scenarios.
-                  </p>
-                </div>
-                <span className="material-symbols-outlined text-[#94a3b8] text-sm self-center group-hover:text-white transition-colors">
-                  chevron_right
-                </span>
-              </button>
             </div>
           </div>
         </div>
