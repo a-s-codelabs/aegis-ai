@@ -72,9 +72,9 @@ export function updateCallSession(callId, updates) {
     updatedAt: new Date().toISOString(),
   });
 
-  // Update scam status based on score
+  // Update scam status based on score (threshold: >40% = scam)
   if (updates.scamScore !== undefined) {
-    session.isScam = updates.scamScore > 60; // Threshold: 60
+    session.isScam = updates.scamScore > 40; // Threshold: 40
     session.confidence = Math.min(updates.scamScore / 100, 1); // Normalize to 0-1
   }
 

@@ -364,8 +364,8 @@ export default function UserDashboard() {
         newCall.scamScore = analysis.scamScore;
         newCall.scamKeywords = analysis.keywords;
 
-        // Determine status based on scam score
-        if (analysis.scamScore > 60) {
+        // Determine status based on scam score (threshold: >40% = scam)
+        if (analysis.scamScore > 40) {
           newCall.status = 'scam';
         } else {
           newCall.status = 'safe';
@@ -829,7 +829,7 @@ export default function UserDashboard() {
     const duration = Math.floor(
       (Date.now() - activeCall.timestamp.getTime()) / 1000
     );
-    const isScam = (activeCall.scamScore || 0) > 60;
+    const isScam = (activeCall.scamScore || 0) > 40;
 
     const updatedCall: Call = {
       ...activeCall,
