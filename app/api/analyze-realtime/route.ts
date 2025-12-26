@@ -37,12 +37,42 @@ const SCAM_PATTERNS = [
   'pin number',
   'security code',
   'cvv',
+  // OTP and verification codes (HIGH PRIORITY - major scam indicator)
+  'otp',
+  'one time password',
+  'verification code',
+  'verification otp',
+  'sms code',
+  'text code',
+  '6 digit code',
+  '4 digit code',
+  'verification number',
+  'confirm code',
+  'enter code',
+  'share code',
+  'send code',
+  'provide code',
+  // Bank balance and account access (HIGH PRIORITY)
+  'check bank balance',
+  'verify bank balance',
+  'check account balance',
+  'verify account balance',
+  'bank balance',
+  'account balance',
+  'check your balance',
+  'verify your balance',
+  'access your account',
+  'login to your account',
+  'account access',
+  'banking information',
+  'account details',
+  'account verification',
 ];
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { callerText, conversationContext = [] } = body;
+    const { callerText, conversationContext = [], dialogueCount = 0 } = body;
 
     if (!callerText || typeof callerText !== 'string') {
       return NextResponse.json(
@@ -71,10 +101,16 @@ export async function POST(req: Request) {
       callerText, // Current caller text (already from caller)
     ].join('\n');
     
+    // Only do comprehensive analysis after sufficient dialogue (10+ exchanges)
+    const MIN_DIALOGUES_FOR_COMPREHENSIVE_ANALYSIS = 10;
+    const hasEnoughDialogue = dialogueCount >= MIN_DIALOGUES_FOR_COMPREHENSIVE_ANALYSIS;
+
     console.log('[AnalyzeRealtime] Analyzing caller conversation:', {
       callerText,
       callerOnlyContextLength: callerOnlyContext.length,
       fullTranscriptLength: fullTranscript.length,
+      dialogueCount: `${dialogueCount}/${MIN_DIALOGUES_FOR_COMPREHENSIVE_ANALYSIS}`,
+      hasEnoughDialogue,
     });
 
     // Quick pattern matching first (fast fallback)
@@ -83,10 +119,25 @@ export async function POST(req: Request) {
       lowerText.includes(pattern.toLowerCase())
     );
 
-    const baseScore = Math.min(foundPatterns.length * 15, 85);
+    // CRITICAL: OTP and bank balance requests are HIGH PRIORITY scams
+    const highPriorityPatterns = [
+      'otp', 'one time password', 'verification code', 'verification otp',
+      'check bank balance', 'verify bank balance', 'check account balance',
+      'verify account balance', 'bank balance', 'account balance'
+    ];
+    const hasHighPriorityPattern = highPriorityPatterns.some(pattern => 
+      lowerText.includes(pattern.toLowerCase())
+    );
 
-    // If high pattern match, return immediately
-    if (foundPatterns.length >= 3) {
+    // Higher base score for high priority patterns
+    let baseScore = Math.min(foundPatterns.length * 15, 85);
+    if (hasHighPriorityPattern) {
+      baseScore = Math.min(baseScore + 30, 95); // Add 30 points for OTP/bank balance requests
+      console.log('[AnalyzeRealtime] 🚨 HIGH PRIORITY SCAM PATTERN DETECTED: OTP or bank balance request');
+    }
+
+    // If high pattern match OR high priority pattern, return immediately as scam
+    if (foundPatterns.length >= 3 || hasHighPriorityPattern) {
       return NextResponse.json({
         scamScore: Math.min(baseScore + 10, 95),
         keywords: foundPatterns.slice(0, 5),
@@ -96,10 +147,12 @@ export async function POST(req: Request) {
     }
 
     // Use Gemini for deeper analysis
+    // If we don't have enough dialogue yet, provide preliminary assessment
     try {
       const geminiResult = await analyzeWithGemini({
         transcript: fullTranscript,
         scamPatterns: SCAM_PATTERNS,
+        hasEnoughDialogue, // Pass flag to indicate if we have enough dialogue
       });
 
       const scamScore = geminiResult.scamScore || 0;
@@ -113,10 +166,17 @@ export async function POST(req: Request) {
       const uniqueKeywords = [...new Set(allKeywords)].slice(0, 5);
 
       // Use higher of base score or Gemini score
-      const finalScore = Math.max(baseScore, scamScore);
+      // CRITICAL: If OTP or bank balance patterns found, ensure high score
+      let finalScore = Math.max(baseScore, scamScore);
+      
+      // Force high score if OTP or bank balance patterns detected
+      if (hasHighPriorityPattern) {
+        finalScore = Math.max(finalScore, 85); // Minimum 85 for OTP/bank balance requests
+        console.log('[AnalyzeRealtime] 🚨 Forcing high scam score due to OTP/bank balance request');
+      }
 
-      // Determine if scam
-      const isScam = finalScore >= 50;
+      // Determine if scam (threshold: >40% = scam)
+      const isScam = finalScore > 40;
 
       // Determine confidence
       let confidence: 'low' | 'medium' | 'high' = 'low';
@@ -138,8 +198,8 @@ export async function POST(req: Request) {
         aiError
       );
 
-      // Fallback to pattern matching
-      const isScam = baseScore >= 50;
+      // Fallback to pattern matching (threshold: >40% = scam)
+      const isScam = baseScore > 40;
       let confidence: 'low' | 'medium' | 'high' = 'low';
       if (baseScore >= 70) {
         confidence = 'high';

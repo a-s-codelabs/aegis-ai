@@ -903,6 +903,9 @@ export default function DashboardPage() {
   const [lastDivertType, setLastDivertType] = useState<'scam' | 'safe'>(
     'safe'
   );
+  // Track dialogue count to ensure we have enough conversation before final analysis
+  const dialogueCountRef = useRef(0);
+  const MIN_DIALOGUES_FOR_ANALYSIS = 10; // Minimum dialogues before comprehensive analysis
   const [blocklist, setBlocklist] = useState<string[]>([]);
   const [calls, setCalls] = useState<Call[]>([
     {
@@ -1075,24 +1078,18 @@ export default function DashboardPage() {
       }
       // If we have some visible transcript but there are new entries
       else if (visibleLength > 0 && visibleLength < transcriptLength) {
-        // Add missing entries one by one
-        let nextIndex = visibleLength;
-        transcriptIntervalRef.current = setInterval(() => {
-          setVisibleTranscript((prev) => {
-            if (nextIndex < activeCall.transcript.length) {
-              const newEntry = activeCall.transcript[nextIndex];
-              nextIndex++;
-              lastProcessedLengthRef.current = nextIndex;
-              return [...prev, newEntry];
-            }
-            // All entries shown, clear interval
-            if (transcriptIntervalRef.current) {
-              clearInterval(transcriptIntervalRef.current);
-              transcriptIntervalRef.current = null;
-            }
-            return prev;
-          });
-        }, 2000);
+        // CRITICAL: Add missing entries immediately for real-time conversation
+        // No delay - show caller and AI messages as they come in
+        const missingEntries = activeCall.transcript.slice(visibleLength);
+        setVisibleTranscript((prev) => {
+          // Filter out any duplicates that might have been added via callbacks
+          const existingTexts = new Set(prev.map(e => `${e.speaker}:${e.text}`));
+          const newEntries = missingEntries.filter(
+            entry => !existingTexts.has(`${entry.speaker}:${entry.text}`)
+          );
+          return [...prev, ...newEntries];
+        });
+        lastProcessedLengthRef.current = transcriptLength;
       }
     }
 
@@ -1125,7 +1122,7 @@ export default function DashboardPage() {
     analysisTimeoutRef.current = setTimeout(async () => {
       try {
         const result = await analyzeConversation(visibleTranscript);
-        const isSafe = result.scamScore < 60; // Safe if score is below 60
+        const isSafe = result.scamScore <= 40; // Safe if score is 40% or below
         
         setActiveCall((prev) => {
           if (!prev) return prev;
@@ -1136,24 +1133,45 @@ export default function DashboardPage() {
           };
         });
 
-        // If call is detected as safe and we haven't triggered re-ring yet, do it now
-        // Require at least 2 transcript entries to ensure we have enough context
-        if (isSafe && !hasTriggeredSafeReRingRef.current && visibleTranscript.length >= 2) {
+        // CRITICAL: Only redial to user AFTER sufficient conversation (10+ dialogues)
+        // AND only if NO scam keywords detected (safe call)
+        const callerMessages = visibleTranscript.filter((e) => e.speaker === 'Caller');
+        const hasEnoughDialogue = callerMessages.length >= MIN_DIALOGUES_FOR_ANALYSIS;
+        const hasScamKeywords = result.keywords && result.keywords.length > 0;
+        
+        // Only redial if:
+        // 1. We have enough dialogue (10+ caller messages)
+        // 2. No scam keywords detected
+        // 3. Scam score is low (< 40 for safety)
+        // 4. We haven't already triggered re-ring
+        if (
+          isSafe && 
+          !hasTriggeredSafeReRingRef.current && 
+          hasEnoughDialogue &&
+          !hasScamKeywords &&
+          result.scamScore < 40
+        ) {
+          console.log('[Dashboard] ✅ Safe call confirmed after sufficient conversation:');
+          console.log(`[Dashboard] - Dialogues: ${callerMessages.length}/${MIN_DIALOGUES_FOR_ANALYSIS}`);
+          console.log(`[Dashboard] - Scam score: ${result.scamScore}`);
+          console.log(`[Dashboard] - Keywords: ${result.keywords.length > 0 ? result.keywords.join(', ') : 'None (safe)'}`);
+          console.log('[Dashboard] - Redialing to user...');
+          
           hasTriggeredSafeReRingRef.current = true;
           
-          // Extract call purpose
+          // Extract call purpose from caller's messages
           try {
-            const purposeResponse = await fetch('/api/analyze-transcript', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                transcript: visibleTranscript,
-                extractPurpose: true,
-              }),
-            });
-
-            const purposeData = await purposeResponse.json();
-            const purpose = purposeData.purpose || 'General inquiry';
+            const callerMessages = visibleTranscript.filter((e) => e.speaker === 'Caller');
+            const callerText = callerMessages.map((e) => e.text).join(' ');
+            
+            // Use caller's own words as purpose
+            let purpose = 'General inquiry';
+            if (callerText.length > 0) {
+              // Take first 150 characters of caller's combined messages as purpose
+              purpose = callerText.length > 150 
+                ? callerText.substring(0, 150) + '...'
+                : callerText;
+            }
 
             // End the current monitoring call first
             // Stop any active ElevenLabs AI voice session
@@ -1212,7 +1230,7 @@ export default function DashboardPage() {
       const duration = activeCall.startTime
         ? Math.floor((Date.now() - activeCall.startTime.getTime()) / 1000)
         : 0;
-      const isScam = activeCall.risk >= 60;
+      const isScam = activeCall.risk > 40;
 
       const newCall: Call = {
         id: Date.now().toString(),
@@ -1225,11 +1243,12 @@ export default function DashboardPage() {
 
       setCalls((prev) => [newCall, ...prev]);
 
-      // Add high-risk callers to an in-memory blocklist for this demo session
+      // Add high-risk callers (>40% scam risk) to blocklist
       if (isScam) {
         setBlocklist((prev) =>
           prev.includes(activeCall.number) ? prev : [activeCall.number, ...prev]
         );
+        console.log(`[Dashboard] 🚫 Added ${activeCall.number} to blocklist (scam risk: ${activeCall.risk}%)`);
       }
     }
 
@@ -1360,6 +1379,10 @@ export default function DashboardPage() {
       return;
     }
 
+    // Increment dialogue count (only count caller messages)
+    dialogueCountRef.current += 1;
+    const currentDialogueCount = dialogueCountRef.current;
+
     try {
       // Build conversation context - ONLY include caller's messages for analysis
       // Filter out AI agent responses - we only care about what the CALLER says
@@ -1374,6 +1397,7 @@ export default function DashboardPage() {
         callerText: text,
         callerMessagesCount: callerOnlyTranscript.length,
         totalTranscriptLength: currentTranscript.length,
+        dialogueCount: `${currentDialogueCount}/${MIN_DIALOGUES_FOR_ANALYSIS}`,
       });
 
       const response = await fetch('/api/analyze-realtime', {
@@ -1382,6 +1406,7 @@ export default function DashboardPage() {
         body: JSON.stringify({
           callerText: text,
           conversationContext,
+          dialogueCount: currentDialogueCount, // Pass dialogue count to API
         }),
       });
 
@@ -1393,8 +1418,39 @@ export default function DashboardPage() {
         console.log('[Dashboard] ✅ Scam analysis result:', {
           scamScore,
           keywords,
-          isScam: scamScore >= 60,
+          isScam: scamScore > 40,
+          dialogueCount: `${currentDialogueCount}/${MIN_DIALOGUES_FOR_ANALYSIS}`,
         });
+
+        // Log analysis status
+        if (currentDialogueCount < MIN_DIALOGUES_FOR_ANALYSIS) {
+          console.log(`[Dashboard] ⏳ Collecting more conversation data... (${currentDialogueCount}/${MIN_DIALOGUES_FOR_ANALYSIS} dialogues)`);
+          console.log(`[Dashboard] Current scam score: ${scamScore} (preliminary - need more data)`);
+          console.log(`[Dashboard] ⚠️ Conversation must continue - not enough data for final decision yet`);
+        } else {
+          console.log(`[Dashboard] ✅ Sufficient conversation data collected (${currentDialogueCount} dialogues)`);
+          console.log(`[Dashboard] Final scam score: ${scamScore}`);
+          console.log(`[Dashboard] Detected keywords: ${keywords.length > 0 ? keywords.join(', ') : 'None'}`);
+          
+          // Make final decision after sufficient dialogue (threshold: >40% = scam)
+          if (scamScore > 40 || keywords.length > 0) {
+            console.log(`[Dashboard] 🚨 SCAM DETECTED: Score ${scamScore}% (threshold: >40%), Keywords: ${keywords.join(', ')}`);
+            console.log(`[Dashboard] ❌ Call will be marked as SCAM and added to blocklist`);
+            
+            // Add to blocklist immediately if scam detected during conversation
+            if (activeCall && scamScore > 40) {
+              setBlocklist((prev) =>
+                prev.includes(activeCall.number) ? prev : [activeCall.number, ...prev]
+              );
+              console.log(`[Dashboard] 🚫 Added ${activeCall.number} to blocklist (scam risk: ${scamScore}%)`);
+            }
+          } else if (scamScore <= 40 && keywords.length === 0) {
+            console.log(`[Dashboard] ✅ SAFE CALL: No scam keywords, low score (${scamScore}%)`);
+            console.log(`[Dashboard] 📞 Call will be redialed to user after conversation ends`);
+          } else {
+            console.log(`[Dashboard] ⚠️ UNCERTAIN: Score ${scamScore}%, needs review`);
+          }
+        }
 
         // Update real-time scores
         setRealtimeScamScore(scamScore);
@@ -1421,6 +1477,9 @@ export default function DashboardPage() {
   };
 
   const handleDivertToAI = () => {
+    // Reset dialogue count when starting a new conversation
+    dialogueCountRef.current = 0;
+    
     if (incomingCall) {
       // If this is already a safe call being re-rung, don't divert again
       // Just accept it directly
@@ -1462,9 +1521,11 @@ export default function DashboardPage() {
             console.log('[Dashboard] Caller said:', text);
 
             // Add caller transcript entry and analyze in one update
+            const callerEntry: TranscriptEntry = { speaker: 'Caller', text };
+            
             setActiveCall((prev) => {
               if (!prev) return prev;
-              const updatedTranscript = [...prev.transcript, { speaker: 'Caller', text }];
+              const updatedTranscript = [...prev.transcript, callerEntry];
               // Analyze with the updated transcript (includes the new entry)
               void analyzeCallerText(text, updatedTranscript);
               return {
@@ -1472,23 +1533,96 @@ export default function DashboardPage() {
                 transcript: updatedTranscript,
               };
             });
+            
+            // CRITICAL: Also add to visibleTranscript immediately (no delay for caller messages)
+            setVisibleTranscript((prev) => {
+              // Check if this entry is already in visibleTranscript to avoid duplicates
+              const isDuplicate = prev.some(
+                (entry, idx) => entry.speaker === 'Caller' && entry.text === text && idx === prev.length - 1
+              );
+              if (isDuplicate) {
+                return prev;
+              }
+              return [...prev, callerEntry];
+            });
           },
           onAgentResponse: (text: string) => {
             console.log('[Dashboard] AI Agent responded:', text);
 
             // Add agent response to transcript
-            addTranscriptEntry({ speaker: 'AI Agent', text });
+            const agentEntry: TranscriptEntry = { speaker: 'AI Agent', text };
+            addTranscriptEntry(agentEntry);
+            
+            // CRITICAL: Also add to visibleTranscript immediately (no delay for agent messages)
+            setVisibleTranscript((prev) => {
+              // Check if this entry is already in visibleTranscript to avoid duplicates
+              const isDuplicate = prev.some(
+                (entry, idx) => entry.speaker === 'AI Agent' && entry.text === text && idx === prev.length - 1
+              );
+              if (isDuplicate) {
+                return prev;
+              }
+              return [...prev, agentEntry];
+            });
           },
           onConversationStart: () => {
             console.log('[Dashboard] Conversation started with ElevenLabs');
-            // Optionally add a greeting message to transcript
+            // Add a greeting message that encourages the caller to explain their purpose
             addTranscriptEntry({
               speaker: 'AI Agent',
-              text: 'Hello, this call is being screened by AI protection. How may I help you?',
-            });
+              text: 'Hello?'});
           },
           onConversationEnd: () => {
             console.log('[Dashboard] Conversation ended');
+            
+            // After conversation ends, check if we should redial
+            // Only redial if we have enough dialogue (10+) and it's safe (no scam keywords)
+            const finalCallerMessages = activeCall?.transcript.filter((e) => e.speaker === 'Caller') || [];
+            const finalDialogueCount = finalCallerMessages.length;
+            const finalScamScore = activeCall?.risk || 0;
+            const finalKeywords = activeCall?.keywords || [];
+            
+            console.log('[Dashboard] 📊 Final conversation analysis:', {
+              dialogueCount: finalDialogueCount,
+              scamScore: finalScamScore,
+              keywords: finalKeywords,
+              hasEnoughDialogue: finalDialogueCount >= MIN_DIALOGUES_FOR_ANALYSIS,
+              hasScamKeywords: finalKeywords.length > 0,
+              isSafe: finalScamScore < 40 && finalKeywords.length === 0,
+            });
+            
+            // Only redial if we have enough dialogue AND it's safe (no scam keywords)
+            if (
+              finalDialogueCount >= MIN_DIALOGUES_FOR_ANALYSIS &&
+              finalScamScore < 40 &&
+              finalKeywords.length === 0 &&
+              !hasTriggeredSafeReRingRef.current
+            ) {
+              console.log('[Dashboard] ✅ Safe call confirmed - redialing to user...');
+              
+              // Extract call purpose from caller's messages
+              const callerText = finalCallerMessages.map((e) => e.text).join(' ');
+              const purpose = callerText.length > 150 
+                ? callerText.substring(0, 150) + '...'
+                : callerText || 'General inquiry';
+              
+              // Redial to user
+              setIncomingCall({
+                number: activeCall?.number || '',
+                purpose,
+                isSafe: true,
+              });
+              
+              setIsFullPageMonitoring(false);
+              startRingtone();
+              hasTriggeredSafeReRingRef.current = true;
+            } else if (finalDialogueCount < MIN_DIALOGUES_FOR_ANALYSIS) {
+              console.log('[Dashboard] ⚠️ Conversation ended too early - not enough dialogue for decision');
+              console.log(`[Dashboard] Had ${finalDialogueCount} dialogues, needed ${MIN_DIALOGUES_FOR_ANALYSIS}`);
+            } else if (finalScamScore >= 40 || finalKeywords.length > 0) {
+              console.log('[Dashboard] 🚨 Scam detected - call will NOT be redialed');
+              console.log(`[Dashboard] Scam score: ${finalScamScore}, Keywords: ${finalKeywords.join(', ')}`);
+            }
           },
           onError: (error: Error) => {
             console.error('[Dashboard] ElevenLabs error:', error);
