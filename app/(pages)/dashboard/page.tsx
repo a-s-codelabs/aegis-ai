@@ -3,7 +3,7 @@
 import React from 'react';
 import { AppLayout } from '@/components/layout/app-layout';
 import { SplitLayoutWithIPhone } from '@/components/layout/split-layout-with-iphone';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { analyzeConversation } from '@/lib/utils/conversation-analysis';
 import type { TranscriptEntry } from '@/lib/utils/conversation-analysis';
@@ -892,6 +892,7 @@ export default function DashboardPage() {
   const transcriptIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const analysisTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastProcessedLengthRef = useRef<number>(0);
+  const autoTerminationCheckRef = useRef<NodeJS.Timeout | null>(null);
   // Single shared ringtone audio instance (HTML5 Audio API)
   const ringtoneAudioRef = useRef<HTMLAudioElement | null>(null);
   const [incomingCall, setIncomingCall] = useState<{
@@ -1224,55 +1225,113 @@ export default function DashboardPage() {
     };
   }, [visibleTranscript, isFullPageMonitoring]);
 
-  const endCall = () => {
+  const endCall = useCallback((reason?: 'auto-terminated' | 'manual') => {
     // Save call to history before clearing
-    if (activeCall) {
-      const duration = activeCall.startTime
-        ? Math.floor((Date.now() - activeCall.startTime.getTime()) / 1000)
-        : 0;
-      const isScam = activeCall.risk > 40;
+    setActiveCall((currentActiveCall) => {
+      if (currentActiveCall) {
+        const duration = currentActiveCall.startTime
+          ? Math.floor((Date.now() - currentActiveCall.startTime.getTime()) / 1000)
+          : 0;
+        const isScam = currentActiveCall.risk > 40;
 
-      const newCall: Call = {
-        id: Date.now().toString(),
-        number: activeCall.number,
-        timestamp: activeCall.startTime || new Date(),
-        duration,
-        status: isScam ? 'scam' : 'safe',
-        risk: activeCall.risk,
-      };
+        const newCall: Call = {
+          id: Date.now().toString(),
+          number: currentActiveCall.number,
+          timestamp: currentActiveCall.startTime || new Date(),
+          duration,
+          status: isScam ? 'scam' : 'safe',
+          risk: currentActiveCall.risk,
+        };
 
-      setCalls((prev) => [newCall, ...prev]);
+        setCalls((prev) => [newCall, ...prev]);
 
-      // Add high-risk callers (>40% scam risk) to blocklist
-      if (isScam) {
-        setBlocklist((prev) =>
-          prev.includes(activeCall.number) ? prev : [activeCall.number, ...prev]
-        );
-        console.log(`[Dashboard] 🚫 Added ${activeCall.number} to blocklist (scam risk: ${activeCall.risk}%)`);
+        // Add high-risk callers (>40% scam risk) to blocklist
+        if (isScam) {
+          setBlocklist((prev) =>
+            prev.includes(currentActiveCall.number) ? prev : [currentActiveCall.number, ...prev]
+          );
+          if (reason === 'auto-terminated') {
+            console.log(`[Dashboard] 🚫 Auto-terminated call and added ${currentActiveCall.number} to blocklist (scam risk: ${currentActiveCall.risk}%, duration: ${duration}s)`);
+          } else {
+            console.log(`[Dashboard] 🚫 Added ${currentActiveCall.number} to blocklist (scam risk: ${currentActiveCall.risk}%)`);
+          }
+        }
       }
+
+      // Stop any active ElevenLabs AI voice session when the call ends
+      if (aiVoiceClientRef.current) {
+        aiVoiceClientRef.current.stop();
+        aiVoiceClientRef.current = null;
+      }
+
+      // Cleanup
+      setIsFullPageMonitoring(false);
+      setVisibleTranscript([]);
+      setRealtimeScamScore(0);
+      setRealtimeKeywords([]);
+      if (transcriptIntervalRef.current) {
+        clearInterval(transcriptIntervalRef.current);
+        transcriptIntervalRef.current = null;
+      }
+      if (analysisTimeoutRef.current) {
+        clearTimeout(analysisTimeoutRef.current);
+        analysisTimeoutRef.current = null;
+      }
+      if (autoTerminationCheckRef.current) {
+        clearInterval(autoTerminationCheckRef.current);
+        autoTerminationCheckRef.current = null;
+      }
+
+      return null; // Clear active call
+    });
+  }, [setCalls, setBlocklist, setActiveCall, setIsFullPageMonitoring, setVisibleTranscript, setRealtimeScamScore, setRealtimeKeywords]);
+
+  // Auto-terminate call if duration > 2 minutes AND scam risk > 50%
+  useEffect(() => {
+    if (!activeCall || !isFullPageMonitoring || !activeCall.startTime) {
+      // Clear interval if no active call
+      if (autoTerminationCheckRef.current) {
+        clearInterval(autoTerminationCheckRef.current);
+        autoTerminationCheckRef.current = null;
+      }
+      return;
     }
 
-    // Stop any active ElevenLabs AI voice session when the call ends
-    if (aiVoiceClientRef.current) {
-      aiVoiceClientRef.current.stop();
-      aiVoiceClientRef.current = null;
-    }
+    // Check every 5 seconds
+    autoTerminationCheckRef.current = setInterval(() => {
+      if (!activeCall || !activeCall.startTime) return;
 
-    // Cleanup
-    setActiveCall(null);
-    setIsFullPageMonitoring(false);
-    setVisibleTranscript([]);
-    setRealtimeScamScore(0);
-    setRealtimeKeywords([]);
-    if (transcriptIntervalRef.current) {
-      clearInterval(transcriptIntervalRef.current);
-      transcriptIntervalRef.current = null;
-    }
-    if (analysisTimeoutRef.current) {
-      clearTimeout(analysisTimeoutRef.current);
-      analysisTimeoutRef.current = null;
-    }
-  };
+      const duration = Math.floor((Date.now() - activeCall.startTime.getTime()) / 1000);
+      const currentRisk = Math.max(activeCall.risk, realtimeScamScore);
+      const MAX_DURATION_SECONDS = 120; // 2 minutes
+      const RISK_THRESHOLD = 50; // 50%
+
+      if (duration > MAX_DURATION_SECONDS && currentRisk > RISK_THRESHOLD) {
+        console.log(`[Dashboard] 🚨 AUTO-TERMINATING CALL: Duration ${duration}s > ${MAX_DURATION_SECONDS}s AND risk ${currentRisk}% > ${RISK_THRESHOLD}%`);
+        console.log(`[Dashboard] 📞 Caller: ${activeCall.number}`);
+        console.log(`[Dashboard] 🚫 Marking as SCAM and adding to blocklist`);
+        
+        // Update active call risk to ensure it's marked as scam
+        setActiveCall((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            risk: currentRisk, // Ensure risk is set to current value
+          };
+        });
+
+        // Auto-terminate the call
+        endCall('auto-terminated');
+      }
+    }, 5000); // Check every 5 seconds
+
+    return () => {
+      if (autoTerminationCheckRef.current) {
+        clearInterval(autoTerminationCheckRef.current);
+        autoTerminationCheckRef.current = null;
+      }
+    };
+  }, [activeCall, isFullPageMonitoring, realtimeScamScore, endCall]);
 
   const handleTakeOverCall = () => {
     // End AI monitoring and return to normal dashboard.
