@@ -63,8 +63,18 @@ async function uploadToLocal(
     await writeFile(filePath, buffer);
     
     // Return public URL (relative to public folder)
-    const publicPath = basePath.replace('./public', '');
-    return `${publicPath}/${filename}`;
+    // Normalize path: remove './public' and ensure it starts with /
+    let publicPath = basePath.replace(/^\.\/public/, '').replace(/\\/g, '/');
+    if (!publicPath.startsWith('/')) {
+      publicPath = '/' + publicPath;
+    }
+    // Remove trailing slash if present
+    publicPath = publicPath.replace(/\/$/, '');
+    
+    const audioUrl = `${publicPath}/${filename}`;
+    console.log('[AudioStorage] Audio saved to:', filePath);
+    console.log('[AudioStorage] Public URL:', audioUrl);
+    return audioUrl;
   } catch (error) {
     console.error('[AudioStorage] Error uploading to local:', error);
     throw new Error(`Failed to save audio file: ${error instanceof Error ? error.message : 'Unknown error'}`);

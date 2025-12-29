@@ -75,7 +75,13 @@ export default function CallLogsPage() {
       };
 
       const handleCallLogsUpdated = () => {
-        loadCallLogs();
+        const logs = loadCallLogs();
+        if (logs) {
+          const parsedLogs = JSON.parse(logs);
+          console.log('[CallLogs] Call logs updated, audio URLs:', 
+            parsedLogs.map((log: CallLog) => ({ id: log.id, audioUrl: log.audioUrl }))
+          );
+        }
       };
 
       window.addEventListener('storage', handleStorageChange);
@@ -99,6 +105,7 @@ export default function CallLogsPage() {
               { speaker: 'AI Agent', text: 'I\'m not interested. This sounds like a scam.' },
             ],
             keywords: ['lottery', 'processing fee', 'prize'],
+            audioUrl: '/recordings/demo-call-1.wav', // Demo audio URL
           },
           {
             id: '2',
@@ -115,6 +122,7 @@ export default function CallLogsPage() {
               { speaker: 'AI Agent', text: 'I understand. Let me connect you with the right person.' },
             ],
             keywords: [],
+            audioUrl: '/recordings/demo-call-2.wav', // Demo audio URL
           },
         ];
         setCallLogs(demoLogs);
@@ -217,9 +225,6 @@ export default function CallLogsPage() {
               <h3 className="text-white font-semibold text-sm">
                 AI Conversation Logs
               </h3>
-              <span className="text-xs text-slate-400">
-                {callLogs.length} {callLogs.length === 1 ? 'call' : 'calls'}
-              </span>
             </div>
 
             <div className="space-y-3">
@@ -294,78 +299,96 @@ export default function CallLogsPage() {
 
                     {/* Expanded Transcript */}
                     {expandedCallId === call.id && (
-                      <div className="border-t border-slate-700/50 bg-slate-900/60 p-4 space-y-3 max-h-96 overflow-y-auto scrollbar-hide">
-                        {/* Recorded Audio Player */}
-                        {call.audioUrl && (
-                          <div className="mb-4 pb-4 border-b border-slate-700/30">
-                            <h4 className="text-white font-semibold text-xs flex items-center gap-2 mb-3">
-                              <span className="material-symbols-outlined text-sm text-[#26d9bb]">
-                                library_music
-                              </span>
-                              Recorded Audio
-                            </h4>
+                      <div className="border-t border-slate-700/50 bg-slate-900/60">
+                        {/* Recorded Audio Player - Above Transcript */}
+                        <div className="p-4 border-b border-slate-700/30 bg-slate-800/30">
+                          <h4 className="text-white font-semibold text-xs flex items-center gap-2 mb-3">
+                            <span className="material-symbols-outlined text-sm text-[#26d9bb]">
+                              library_music
+                            </span>
+                            Recorded Audio
+                          </h4>
+                          {call.audioUrl ? (
                             <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/30">
                               <audio
                                 controls
                                 className="w-full h-10"
                                 src={call.audioUrl}
+                                onError={(e) => {
+                                  console.error('[CallLogs] Audio playback error:', call.audioUrl, e);
+                                }}
+                                onLoadStart={() => {
+                                  console.log('[CallLogs] Loading audio:', call.audioUrl);
+                                }}
                               >
                                 Your browser does not support the audio element.
                               </audio>
+                              <p className="text-slate-400 text-[10px] mt-1">
+                                {call.audioUrl}
+                              </p>
                             </div>
-                          </div>
-                        )}
+                          ) : (
+                            <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/30">
+                              <p className="text-slate-400 text-xs text-center py-2">
+                                Audio recording not available for this call
+                              </p>
+                            </div>
+                          )}
+                        </div>
                         
-                        {call.transcript && (
-                          <>
-                            <div className="mb-3">
-                              <h4 className="text-white font-semibold text-xs flex items-center gap-2 mb-2">
-                                <span className="material-symbols-outlined text-sm text-[#26d9bb]">
-                                  transcript
-                                </span>
-                                Conversation Transcript
-                              </h4>
-                              {call.keywords && call.keywords.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5">
-                                  {call.keywords.map((keyword, idx) => (
-                                    <span
-                                      key={idx}
-                                      className="px-2 py-0.5 bg-red-900/30 border border-red-500/30 text-red-400 text-[10px] font-medium rounded uppercase"
-                                    >
-                                      {keyword}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                        {call.transcript.map((entry, idx) => (
-                          <div key={idx} className="text-xs">
-                            {entry.speaker === 'AI Agent' ? (
-                              <div className="bg-slate-800/50 p-2 rounded-lg border border-slate-700/30">
-                                <p className="text-[#26d9bb] font-bold mb-0.5 flex items-center gap-1">
-                                  <span className="material-symbols-outlined text-[10px]">
-                                    smart_toy
+                        {/* Transcript Section */}
+                        <div className="p-4 space-y-3 max-h-96 overflow-y-auto scrollbar-hide">
+                          {call.transcript && (
+                            <>
+                              <div className="mb-3">
+                                <h4 className="text-white font-semibold text-xs flex items-center gap-2 mb-2">
+                                  <span className="material-symbols-outlined text-sm text-[#26d9bb]">
+                                    transcript
                                   </span>
-                                  {entry.speaker}
-                                </p>
-                                <p className="text-slate-200 leading-relaxed">
-                                  {entry.text}
-                                </p>
+                                  Conversation Transcript
+                                </h4>
+                                {call.keywords && call.keywords.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {call.keywords.map((keyword, idx) => (
+                                      <span
+                                        key={idx}
+                                        className="px-2 py-0.5 bg-red-900/30 border border-red-500/30 text-red-400 text-[10px] font-medium rounded uppercase"
+                                      >
+                                        {keyword}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
-                            ) : (
-                              <>
-                                <p className="text-slate-500 font-bold mb-0.5">
-                                  {entry.speaker}
-                                </p>
-                                <p className="text-slate-300 leading-relaxed">
-                                  {entry.text}
-                                </p>
-                              </>
-                            )}
-                          </div>
-                        ))}
-                          </>
-                        )}
+                              {call.transcript.map((entry, idx) => (
+                                <div key={idx} className="text-xs">
+                                  {entry.speaker === 'AI Agent' ? (
+                                    <div className="bg-slate-800/50 p-2 rounded-lg border border-slate-700/30">
+                                      <p className="text-[#26d9bb] font-bold mb-0.5 flex items-center gap-1">
+                                        <span className="material-symbols-outlined text-[10px]">
+                                          smart_toy
+                                        </span>
+                                        {entry.speaker}
+                                      </p>
+                                      <p className="text-slate-200 leading-relaxed">
+                                        {entry.text}
+                                      </p>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <p className="text-slate-500 font-bold mb-0.5">
+                                        {entry.speaker}
+                                      </p>
+                                      <p className="text-slate-300 leading-relaxed">
+                                        {entry.text}
+                                      </p>
+                                    </>
+                                  )}
+                                </div>
+                              ))}
+                            </>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -402,6 +425,14 @@ export default function CallLogsPage() {
           </span>
           <div>
             <strong className="text-[#26d9bb]">Transcript Details:</strong> Expand any call to see the full conversation between the AI agent and caller.
+          </div>
+        </div>
+        <div className="flex items-start gap-3">
+          <span className="material-symbols-outlined text-[#26d9bb] text-xl mt-0.5">
+            library_music
+          </span>
+          <div>
+            <strong className="text-[#26d9bb]">Audio Recordings:</strong> Listen to the recorded audio of each call, displayed above the transcript for easy playback and review.
           </div>
         </div>
       </div>

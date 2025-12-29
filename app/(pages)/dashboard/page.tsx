@@ -1324,7 +1324,7 @@ export default function DashboardPage() {
     };
   }, [visibleTranscript, isFullPageMonitoring]);
 
-  const endCall = useCallback((reason?: 'auto-terminated' | 'manual') => {
+  const endCall = useCallback(async (reason?: 'auto-terminated' | 'manual') => {
     // Save call to history before clearing
     setActiveCall((currentActiveCall) => {
       if (currentActiveCall) {
@@ -1359,12 +1359,76 @@ export default function DashboardPage() {
 
         setCalls((prev) => [newCall, ...prev]);
 
-        // Save call with transcript to localStorage for call logs page
+        // End call recording and get audio URL (async operation outside setState)
+        if (currentActiveCall.conversationId && typeof window !== 'undefined') {
+          fetch('/api/calls/end', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              conversationId: currentActiveCall.conversationId,
+              phoneNumber: currentActiveCall.number,
+              duration,
+              risk: currentActiveCall.risk,
+              status: finalStatus,
+            }),
+          })
+            .then(async (response) => {
+              if (!response.ok) {
+                const errorText = await response.text();
+                console.error('[Dashboard] Failed to end call recording:', response.status, errorText);
+                return null;
+              }
+              return response.json();
+            })
+            .then((data) => {
+              const audioUrl = data?.audioUrl || null;
+              console.log('[Dashboard] 🎙️ Call recording ended, audio URL:', audioUrl);
+              console.log('[Dashboard] Full response data:', data);
+
+              if (!audioUrl) {
+                console.warn('[Dashboard] ⚠️ No audio URL returned from /api/calls/end');
+              }
+
+              // Update call log entry with audio URL
+              const existingLogs = localStorage.getItem('callLogs');
+              const callLogs = existingLogs ? JSON.parse(existingLogs) : [];
+              
+              // Find the call log entry we just added and update it with audioUrl
+              // Try matching by conversationId first, then by id
+              const callLogIndex = callLogs.findIndex((log: any) => 
+                log.id === newCall.id || 
+                log.conversationId === currentActiveCall.conversationId
+              );
+              
+              if (callLogIndex !== -1) {
+                const updatedLog = {
+                  ...callLogs[callLogIndex],
+                  audioUrl: audioUrl || undefined,
+                };
+                callLogs[callLogIndex] = updatedLog;
+                localStorage.setItem('callLogs', JSON.stringify(callLogs));
+                console.log('[Dashboard] ✅ Updated call log with audio URL:', updatedLog.id, updatedLog.audioUrl);
+                window.dispatchEvent(new CustomEvent('callLogsUpdated'));
+              } else {
+                console.warn('[Dashboard] ⚠️ Could not find call log entry to update:', {
+                  newCallId: newCall.id,
+                  conversationId: currentActiveCall.conversationId,
+                  availableIds: callLogs.map((log: any) => ({ id: log.id, conversationId: log.conversationId })),
+                });
+              }
+            })
+            .catch((error) => {
+              console.error('[Dashboard] Error ending call recording:', error);
+            });
+        }
+
+        // Save call with transcript to localStorage for call logs page (audioUrl will be added later)
         if (typeof window !== 'undefined') {
           const callLogEntry = {
             ...newCall,
             transcript: currentActiveCall.transcript,
             keywords: currentActiveCall.keywords,
+            // audioUrl will be added when /api/calls/end completes
           };
 
           const existingLogs = localStorage.getItem('callLogs');

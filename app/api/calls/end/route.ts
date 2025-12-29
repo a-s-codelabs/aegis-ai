@@ -59,11 +59,18 @@ export async function POST(req: Request) {
     // Fallback: Create merged WAV file from local audio chunks (if WebSocket didn't capture)
     if (!audioUrl && (session.inputChunks.length > 0 || session.outputChunks.length > 0)) {
       try {
+        console.log('[CallEnd] Creating WAV file from local chunks:', {
+          inputChunks: session.inputChunks.length,
+          outputChunks: session.outputChunks.length,
+        });
+
         const wavBuffer = createMergedWavFile(
           session.inputChunks,
           session.outputChunks,
           24000 // ElevenLabs sample rate
         );
+
+        console.log('[CallEnd] WAV file created, size:', wavBuffer.length, 'bytes');
 
         // Generate filename
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -71,15 +78,18 @@ export async function POST(req: Request) {
 
         // Upload to storage
         const storageConfig = getStorageConfig();
+        console.log('[CallEnd] Storage config:', { type: storageConfig.type, localPath: storageConfig.localPath });
+        
         audioUrl = await uploadAudioFile(wavBuffer, filename, storageConfig);
 
-        console.log('[CallEnd] Audio file uploaded from local chunks:', audioUrl);
+        console.log('[CallEnd] ✅ Audio file uploaded from local chunks:', audioUrl);
       } catch (error) {
-        console.error('[CallEnd] Error creating/uploading audio file:', error);
+        console.error('[CallEnd] ❌ Error creating/uploading audio file:', error);
         // Continue even if audio upload fails
+        audioUrl = null;
       }
     } else if (!audioUrl) {
-      console.warn('[CallEnd] No audio chunks to save (neither WebSocket nor local)');
+      console.warn('[CallEnd] ⚠️ No audio chunks to save (neither WebSocket nor local)');
     }
 
     // Clean up session
