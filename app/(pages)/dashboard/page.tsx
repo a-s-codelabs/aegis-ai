@@ -84,6 +84,7 @@ interface IncomingCallContentProps {
   onDecline: () => void;
   onDivertToAI: () => void;
   onAccept: () => void;
+  showDivertButton?: boolean;
 }
 
 function DashboardContent({
@@ -623,6 +624,7 @@ function IncomingCallContent({
   onDecline,
   onDivertToAI,
   onAccept,
+  showDivertButton = true,
 }: IncomingCallContentProps) {
   const isSafeCall = incomingCall.isSafe === true;
   const callPurpose = incomingCall.purpose || '';
@@ -735,7 +737,7 @@ function IncomingCallContent({
 
         {/* Action Buttons Section */}
         <div className="w-full pb-4 z-20">
-          <div className="flex items-end justify-between px-4">
+          <div className={`flex items-end px-4 ${showDivertButton ? 'justify-between' : 'justify-center gap-24'}`}>
             {/* DECLINE Button */}
             <button
               onClick={onDecline}
@@ -756,63 +758,65 @@ function IncomingCallContent({
               </span>
             </button>
 
-            {/* DIVERT TO AI PROTECTION Button */}
-            <button
-              onClick={onDivertToAI}
-              className="flex flex-col items-center gap-2 group active:scale-[0.98] transition-transform"
-            >
-              <div className="flex flex-col items-center -space-y-3 pb-1">
-                <span
-                  className="material-symbols-outlined text-2xl text-[#2dd4bf]/40"
-                  style={{
-                    animation: 'swipe 2s infinite ease-out',
-                    animationDelay: '0.3s',
-                  }}
-                >
-                  keyboard_arrow_up
-                </span>
-                <span
-                  className="material-symbols-outlined text-2xl text-[#2dd4bf]/70"
-                  style={{
-                    animation: 'swipe 2s infinite ease-out',
-                    animationDelay: '0.15s',
-                  }}
-                >
-                  keyboard_arrow_up
-                </span>
-                <span
-                  className="material-symbols-outlined text-2xl text-[#2dd4bf]"
-                  style={{
-                    animation: 'swipe 2s infinite ease-out',
-                    animationDelay: '0s',
-                  }}
-                >
-                  keyboard_arrow_up
-                </span>
-              </div>
-              <div className="relative">
-                <div
-                  className="absolute inset-0 bg-[#2dd4bf]/30 rounded-full opacity-20"
-                  style={{
-                    animation: 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite',
-                  }}
-                ></div>
-                <div className="w-12 h-12 rounded-full bg-[#2dd4bf] flex items-center justify-center shadow-[0_0_40px_rgba(45,212,191,0.3)] hover:shadow-[0_0_60px_rgba(45,212,191,0.5)] border-2 border-white/20 relative overflow-hidden z-10">
-                  <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent z-0 transition-transform duration-1000"></div>
+            {/* DIVERT TO AI PROTECTION Button - Conditionally Rendered */}
+            {showDivertButton && (
+              <button
+                onClick={onDivertToAI}
+                className="flex flex-col items-center gap-2 group active:scale-[0.98] transition-transform"
+              >
+                <div className="flex flex-col items-center -space-y-3 pb-1">
                   <span
-                    className="material-symbols-outlined text-black z-10 text-2xl"
+                    className="material-symbols-outlined text-2xl text-[#2dd4bf]/40"
                     style={{
-                      fontVariationSettings: "'FILL' 1, 'wght' 700",
+                      animation: 'swipe 2s infinite ease-out',
+                      animationDelay: '0.3s',
                     }}
                   >
-                    shield
+                    keyboard_arrow_up
+                  </span>
+                  <span
+                    className="material-symbols-outlined text-2xl text-[#2dd4bf]/70"
+                    style={{
+                      animation: 'swipe 2s infinite ease-out',
+                      animationDelay: '0.15s',
+                    }}
+                  >
+                    keyboard_arrow_up
+                  </span>
+                  <span
+                    className="material-symbols-outlined text-2xl text-[#2dd4bf]"
+                    style={{
+                      animation: 'swipe 2s infinite ease-out',
+                      animationDelay: '0s',
+                    }}
+                  >
+                    keyboard_arrow_up
                   </span>
                 </div>
-              </div>
-              <span className="text-[9px] font-bold text-[#2dd4bf] tracking-widest uppercase drop-shadow-lg text-center leading-tight">
-                Divert to AI Protection
-              </span>
-            </button>
+                <div className="relative">
+                  <div
+                    className="absolute inset-0 bg-[#2dd4bf]/30 rounded-full opacity-20"
+                    style={{
+                      animation: 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite',
+                    }}
+                  ></div>
+                  <div className="w-12 h-12 rounded-full bg-[#2dd4bf] flex items-center justify-center shadow-[0_0_40px_rgba(45,212,191,0.3)] hover:shadow-[0_0_60px_rgba(45,212,191,0.5)] border-2 border-white/20 relative overflow-hidden z-10">
+                    <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent z-0 transition-transform duration-1000"></div>
+                    <span
+                      className="material-symbols-outlined text-black z-10 text-2xl"
+                      style={{
+                        fontVariationSettings: "'FILL' 1, 'wght' 700",
+                      }}
+                    >
+                      shield
+                    </span>
+                  </div>
+                </div>
+                <span className="text-[9px] font-bold text-[#2dd4bf] tracking-widest uppercase drop-shadow-lg text-center leading-tight">
+                  Divert to AI Protection
+                </span>
+              </button>
+            )}
 
             {/* ACCEPT Button */}
             <button
@@ -910,6 +914,7 @@ export default function DashboardPage() {
   const MIN_DIALOGUES_FOR_ANALYSIS = 10; // Minimum dialogues before comprehensive analysis
   const [blocklist, setBlocklist] = useState<string[]>([]);
   const [voicePreference, setVoicePreference] = useState<'default' | 'female' | 'male'>('default');
+  const [divertCallPopupEnabled, setDivertCallPopupEnabled] = useState(true);
   const [calls, setCalls] = useState<Call[]>([
     {
       id: '1',
@@ -1006,6 +1011,12 @@ export default function DashboardPage() {
         setVoicePreference(savedVoice);
       }
       
+      // Load divert call popup preference from localStorage
+      const savedDivertCallPopup = localStorage.getItem('divertCallPopupEnabled');
+      if (savedDivertCallPopup !== null) {
+        setDivertCallPopupEnabled(savedDivertCallPopup === 'true');
+      }
+      
       const handleVoicePreferenceChange = (event: CustomEvent) => {
         const newVoice = event.detail.voice as 'default' | 'female' | 'male';
         console.log('[Dashboard] Voice preference changed to:', newVoice);
@@ -1018,10 +1029,19 @@ export default function DashboardPage() {
         }
       };
       
+      const handleDivertCallPopupChange = () => {
+        const savedDivertCallPopup = localStorage.getItem('divertCallPopupEnabled');
+        if (savedDivertCallPopup !== null) {
+          setDivertCallPopupEnabled(savedDivertCallPopup === 'true');
+        }
+      };
+      
       window.addEventListener('voicePreferenceChanged', handleVoicePreferenceChange as EventListener);
+      window.addEventListener('divertCallPopupChanged', handleDivertCallPopupChange);
       
       return () => {
         window.removeEventListener('voicePreferenceChanged', handleVoicePreferenceChange as EventListener);
+        window.removeEventListener('divertCallPopupChanged', handleDivertCallPopupChange);
       };
     }
   }, [router]);
@@ -1869,6 +1889,7 @@ export default function DashboardPage() {
       onDecline={handleDeclineCall}
       onDivertToAI={handleDivertToAI}
       onAccept={handleAcceptCall}
+      showDivertButton={divertCallPopupEnabled}
     />
   ) : activeCall && isFullPageMonitoring ? (
     <FullPageMonitoringContent

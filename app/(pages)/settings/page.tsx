@@ -37,6 +37,12 @@ export default function SettingsPage() {
         if (savedContactAccess !== null) {
           setContactAccessEnabled(savedContactAccess === 'true');
         }
+        
+        // Load divert call popup preference from localStorage
+        const savedDivertCallPopup = localStorage.getItem('divertCallPopupEnabled');
+        if (savedDivertCallPopup !== null) {
+          setDivertCallPopupEnabled(savedDivertCallPopup === 'true');
+        }
       } catch (error) {
         console.error('[Settings] Error parsing session:', error);
         router.push('/auth/login');
@@ -267,7 +273,16 @@ export default function SettingsPage() {
 
             {/* Toggle Switch */}
             <button
-              onClick={() => setDivertCallPopupEnabled(!divertCallPopupEnabled)}
+              onClick={() => {
+                const newValue = !divertCallPopupEnabled;
+                setDivertCallPopupEnabled(newValue);
+                // Persist to localStorage
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('divertCallPopupEnabled', String(newValue));
+                  // Dispatch event to notify other components
+                  window.dispatchEvent(new Event('divertCallPopupChanged'));
+                }
+              }}
               className={`w-12 h-6 rounded-full transition-all duration-200 flex-shrink-0 ${
                 divertCallPopupEnabled
                   ? 'bg-[#26d9bb]'
