@@ -31,6 +31,12 @@ export default function SettingsPage() {
       try {
         const session: UserSession = JSON.parse(sessionData);
         setUserSession(session);
+        
+        // Load contact access preference from localStorage
+        const savedContactAccess = localStorage.getItem('contactAccessEnabled');
+        if (savedContactAccess !== null) {
+          setContactAccessEnabled(savedContactAccess === 'true');
+        }
       } catch (error) {
         console.error('[Settings] Error parsing session:', error);
         router.push('/auth/login');
@@ -208,7 +214,16 @@ export default function SettingsPage() {
 
             {/* Toggle Switch */}
             <button
-              onClick={() => setContactAccessEnabled(!contactAccessEnabled)}
+              onClick={() => {
+                const newValue = !contactAccessEnabled;
+                setContactAccessEnabled(newValue);
+                // Persist to localStorage
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('contactAccessEnabled', String(newValue));
+                  // Dispatch event to notify other components
+                  window.dispatchEvent(new Event('contactAccessChanged'));
+                }
+              }}
               className={`w-12 h-6 rounded-full transition-all duration-200 flex-shrink-0 ${
                 contactAccessEnabled
                   ? 'bg-[#26d9bb]'

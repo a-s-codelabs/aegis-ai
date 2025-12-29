@@ -36,6 +36,35 @@ interface Contact {
 
 // Home Content Component (to be rendered inside iPhone)
 function HomeContent() {
+  const router = useRouter();
+  const [contactAccessEnabled, setContactAccessEnabled] = useState(true);
+
+  // Load contact access preference from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedContactAccess = localStorage.getItem('contactAccessEnabled');
+      if (savedContactAccess !== null) {
+        setContactAccessEnabled(savedContactAccess === 'true');
+      }
+
+      // Listen for changes to contact access
+      const handleContactAccessChange = () => {
+        const savedContactAccess = localStorage.getItem('contactAccessEnabled');
+        if (savedContactAccess !== null) {
+          setContactAccessEnabled(savedContactAccess === 'true');
+        }
+      };
+
+      window.addEventListener('contactAccessChanged', handleContactAccessChange);
+      window.addEventListener('storage', handleContactAccessChange);
+
+      return () => {
+        window.removeEventListener('contactAccessChanged', handleContactAccessChange);
+        window.removeEventListener('storage', handleContactAccessChange);
+      };
+    }
+  }, []);
+
   const [recentCalls] = useState<RecentCall[]>([
     {
       id: '1',
@@ -309,44 +338,83 @@ function HomeContent() {
 
             {/* Contacts Tab */}
             <TabsContent value="contacts" className="mt-4 space-y-4">
-              <div className="flex items-center justify-between mb-2 px-1">
-                <h3 className="text-[11px] font-semibold text-gray-300 uppercase tracking-wider">
-                  Contacts
-                </h3>
-                <button className="flex items-center gap-1 text-[10px] text-[#26d9bb] hover:text-[#20c4a8] font-medium transition-colors">
-                  <span className="material-symbols-outlined text-[14px]">
-                    person_add
-                  </span>
-                  Add Contact
-                </button>
-              </div>
-              <div className="bg-[#151e32] border border-gray-800 rounded-xl overflow-hidden shadow-lg">
-                {contacts.map((contact, index) => (
-                  <div
-                    key={contact.id}
-                    className={`p-3 hover:bg-gray-800/30 transition-colors flex items-center gap-3 ${
-                      index < contacts.length - 1
-                        ? 'border-b border-gray-800/50'
-                        : ''
-                    }`}
-                  >
-                    <div
-                      className={`w-9 h-9 rounded-full ${getContactColor(
-                        contact.color
-                      )} flex items-center justify-center text-xs font-bold shrink-0`}
-                    >
-                      {contact.initials}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-medium text-gray-100 truncate">
-                        {contact.name}
-                      </h4>
-                      <p className="text-[10px] text-gray-500">{contact.type}</p>
-                    </div>
-                    <span className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)] shrink-0"></span>
+              {contactAccessEnabled ? (
+                <>
+                  <div className="flex items-center justify-between mb-2 px-1">
+                    <h3 className="text-[11px] font-semibold text-gray-300 uppercase tracking-wider">
+                      Contacts
+                    </h3>
+                    <button className="flex items-center gap-1 text-[10px] text-[#26d9bb] hover:text-[#20c4a8] font-medium transition-colors">
+                      <span className="material-symbols-outlined text-[14px]">
+                        person_add
+                      </span>
+                      Add Contact
+                    </button>
                   </div>
-                ))}
-              </div>
+                  <div className="bg-[#151e32] border border-gray-800 rounded-xl overflow-hidden shadow-lg">
+                    {contacts.map((contact, index) => (
+                      <div
+                        key={contact.id}
+                        className={`p-3 hover:bg-gray-800/30 transition-colors flex items-center gap-3 ${
+                          index < contacts.length - 1
+                            ? 'border-b border-gray-800/50'
+                            : ''
+                        }`}
+                      >
+                        <div
+                          className={`w-9 h-9 rounded-full ${getContactColor(
+                            contact.color
+                          )} flex items-center justify-center text-xs font-bold shrink-0`}
+                        >
+                          {contact.initials}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-sm font-medium text-gray-100 truncate">
+                            {contact.name}
+                          </h4>
+                          <p className="text-[10px] text-gray-500">{contact.type}</p>
+                        </div>
+                        <span className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)] shrink-0"></span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="bg-[#151e32] border border-gray-800 rounded-xl p-6 shadow-lg">
+                  <div className="flex flex-col items-center justify-center text-center space-y-4">
+                    {/* Contact Icon */}
+                    <div className="w-16 h-16 rounded-xl bg-[#26d9bb]/20 flex items-center justify-center">
+                      <span
+                        className="material-symbols-outlined text-[#26d9bb] text-3xl"
+                        style={{ fontVariationSettings: '"FILL" 1, "wght" 400' }}
+                      >
+                        contacts
+                      </span>
+                    </div>
+                    
+                    {/* Message */}
+                    <div className="space-y-2">
+                      <h3 className="text-base font-semibold text-white">
+                        Contact Access Required
+                      </h3>
+                      <p className="text-sm text-gray-400 leading-relaxed max-w-xs">
+                        Give contact access to see your contacts and enable better call protection.
+                      </p>
+                    </div>
+
+                    {/* Button to Settings */}
+                    <button
+                      onClick={() => router.push('/settings')}
+                      className="px-6 py-3 rounded-xl bg-[#26d9bb] text-white font-semibold hover:bg-[#20c4a8] transition-colors flex items-center gap-2 min-h-[44px]"
+                    >
+                      <span className="material-symbols-outlined text-lg">
+                        settings
+                      </span>
+                      Go to Settings
+                    </button>
+                  </div>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>
