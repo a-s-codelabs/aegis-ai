@@ -10,6 +10,7 @@ interface UserSession {
   phoneNumber: string;
   token: string;
   name?: string;
+  profilePicture?: string | null;
 }
 
 export default function SettingsPage() {
@@ -36,6 +37,50 @@ export default function SettingsPage() {
       }
     }
   }, [router]);
+
+  // Listen for storage changes to update profile when edited
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handleStorageChange = () => {
+        const sessionData = localStorage.getItem('userSession');
+        if (sessionData) {
+          try {
+            const session: UserSession = JSON.parse(sessionData);
+            setUserSession(session);
+          } catch (error) {
+            console.error('[Settings] Error parsing session:', error);
+          }
+        }
+      };
+
+      // Listen for storage events (from other tabs/windows)
+      window.addEventListener('storage', handleStorageChange);
+
+      // Also listen for custom event (from same tab)
+      window.addEventListener('profileUpdated', handleStorageChange);
+
+      // Refresh when page becomes visible (user navigates back)
+      const handleVisibilityChange = () => {
+        if (!document.hidden) {
+          handleStorageChange();
+        }
+      };
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+
+      // Also refresh when window gains focus (user navigates back)
+      const handleFocus = () => {
+        handleStorageChange();
+      };
+      window.addEventListener('focus', handleFocus);
+
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('profileUpdated', handleStorageChange);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        window.removeEventListener('focus', handleFocus);
+      };
+    }
+  }, []);
 
   const handleSignOutClick = () => {
     setShowSignOutDialog(true);
@@ -90,13 +135,24 @@ export default function SettingsPage() {
         <section className="w-full flex flex-col items-center">
           {/* Avatar with Edit Icon */}
           <div className="relative mb-4">
-            <div className="w-24 h-24 rounded-full bg-[#1e293b] flex items-center justify-center border-2 border-gray-700/50">
-              <span className="text-3xl font-semibold text-white">
-                {getUserInitials()}
-              </span>
-            </div>
+            {userSession?.profilePicture ? (
+              <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-gray-700/50">
+                <img
+                  src={userSession.profilePicture}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-[#1e293b] flex items-center justify-center border-2 border-gray-700/50">
+                <span className="text-3xl font-semibold text-white">
+                  {getUserInitials()}
+                </span>
+              </div>
+            )}
             {/* Edit Icon Overlay */}
             <button
+              onClick={() => router.push('/settings/edit')}
               className="absolute -bottom-1 -right-1 w-9 h-9 rounded-full bg-[#26d9bb] flex items-center justify-center border-2 border-[#0B1121] hover:bg-[#20c4a8] transition-colors shadow-lg z-10"
               aria-label="Edit profile"
             >

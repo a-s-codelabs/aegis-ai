@@ -1,22 +1,5 @@
 import { NextResponse } from "next/server"
-
-// Mock user database - In production, this would be a real database
-// For demo purposes, we'll use a simple in-memory store
-// Note: In a real app, this would be persisted in a database
-let users = [
-  {
-    id: "1",
-    phoneNumber: "+15551234567",
-    password: "password123", // In production, this should be hashed
-    name: "John Doe",
-  },
-  {
-    id: "2",
-    phoneNumber: "+15559876543",
-    password: "password123",
-    name: "Jane Smith",
-  },
-]
+import { users } from "../shared/users"
 
 export async function POST(request: Request) {
   try {
@@ -61,6 +44,7 @@ export async function POST(request: Request) {
         : `+1${normalizedPhone}`,
       password: password, // In production, hash this with bcrypt
       name: name.trim(),
+      profilePicture: null as string | null,
     }
 
     users.push(newUser)
@@ -76,6 +60,7 @@ export async function POST(request: Request) {
       userId: newUser.id,
       phoneNumber: newUser.phoneNumber,
       name: newUser.name,
+      profilePicture: newUser.profilePicture,
       token,
     })
   } catch (error) {
