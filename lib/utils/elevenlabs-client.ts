@@ -6,6 +6,12 @@
  * - Real-time transcription of caller speech
  * - Audio playback via Web Audio API
  * - Event callbacks for transcript updates and scam analysis triggers
+ * 
+ * MULTI-AGENT VOICE SYSTEM:
+ * - Voice preference is mapped to agent_id BEFORE call starts
+ * - Voice cannot be changed during an active call (ElevenLabs limitation)
+ * - Each voice uses a separate agent: default (Eric), female (Laura), male (Roger)
+ * - Voice is sent when requesting signed URL, NOT in message payloads
  */
 
 export interface ElevenLabsClientOptions {
@@ -21,6 +27,13 @@ export interface ElevenLabsClientOptions {
    * Default: 0.6 (60% speed - slower and clearer for better understanding)
    */
   playbackRate?: number;
+  /**
+   * Voice preference: 'default' (Eric), 'female' (Laura), or 'male' (Roger)
+   * 
+   * NOTE: This is used to select the agent_id BEFORE starting the call.
+   * Voice cannot be changed during an active call session.
+   */
+  voice?: 'default' | 'female' | 'male';
   /**
    * Callback when caller's speech is transcribed
    */
@@ -48,6 +61,7 @@ export class ElevenLabsClient {
   private isConnected = false;
   private readonly options: ElevenLabsClientOptions;
   private readonly playbackRate: number;
+  private voicePreference: 'default' | 'female' | 'male';
   private fallbackAudio: HTMLAudioElement | null = null;
   private mediaStream: MediaStream | null = null;
   private audioContext: AudioContext | null = null;
@@ -59,12 +73,17 @@ export class ElevenLabsClient {
 
   constructor(options?: ElevenLabsClientOptions) {
     this.options = options ?? {};
-    // Set playback rate (default 0.75 = 75% speed for slower, clearer speech)
-    this.playbackRate = this.options.playbackRate ?? 0.6; // Default: 60% speed (slower and clearer)
+    this.playbackRate = 0.6;
+    this.voicePreference = this.options.voice ?? 'default';
     if (this.options.fallbackGreetingAudioUrl && typeof window !== 'undefined') {
-      // Preload optional fallback greeting so playback feels instant
       this.fallbackAudio = new Audio(this.options.fallbackGreetingAudioUrl);
     }
+  }
+
+  setVoice(voice: 'default' | 'female' | 'male') {
+    this.voicePreference = voice;
+    // NOTE: Voice changes require a new agent session (new signed URL with different agent_id)
+    // This method updates the preference for the next call, but current call will continue with original agent
   }
 
   /**
@@ -81,7 +100,11 @@ export class ElevenLabsClient {
     }
 
     try {
-      const res = await fetch('/api/elevenlabs-signed-url');
+      const res = await fetch('/api/elevenlabs-signed-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voice: this.voicePreference }),
+      });
       if (!res.ok) {
         let errorMessage = `Failed to fetch signed URL: ${res.status} ${res.statusText}`;
         try {
@@ -287,21 +310,28 @@ export class ElevenLabsClient {
           console.log('[ElevenLabsClient] 📡 WebSocket URL:', data.signedUrl.substring(0, 50) + '...');
         }
 
-        // Trigger conversation start callback
+        if (this.ws) {
+          const payload: any = {
+            playback_speed: 0.6,
+          };
+          try {
+            this.ws.send(JSON.stringify(payload));
+          } catch (error) {
+            console.error('[ElevenLabsClient] Error sending initial config:', error);
+          }
+        }
+
         this.options.onConversationStart?.();
 
-        // Start audio streaming IMMEDIATELY (this captures microphone and sends to ElevenLabs)
         console.log('[ElevenLabsClient] 🎤 Starting microphone audio streaming...');
         console.log('[ElevenLabsClient] 📊 Audio format: PCM16, 24kHz, Mono');
         console.log('[ElevenLabsClient] 📝 Message format: { "user_audio_chunk": "<base64_pcm16>" }');
         
-        // Start audio streaming - ensure it happens
         try {
           this.startAudioStreaming();
           console.log('[ElevenLabsClient] ✅ Audio streaming started. Speak into your microphone now!');
         } catch (streamError) {
           console.error('[ElevenLabsClient] ❌ Failed to start audio streaming:', streamError);
-          // Retry after small delay
           setTimeout(() => {
             try {
               this.startAudioStreaming();
@@ -313,7 +343,6 @@ export class ElevenLabsClient {
           }, 500);
         }
 
-        // Play fallback greeting if available
         if (this.fallbackAudio) {
           this.fallbackAudio.currentTime = 0;
           void this.fallbackAudio
@@ -555,12 +584,15 @@ export class ElevenLabsClient {
 
             // Send audio chunk to ElevenLabs
             // CRITICAL: This is how caller audio reaches the AI
-            // ElevenLabs ConvAI expects: { "user_audio_chunk": "<base64_encoded_pcm16>" }
+            // ElevenLabs ConvAI expects: { "user_audio_chunk": "<base64_encoded_pcm16>", "playback_speed": 0.6 }
+            // NOTE: Voice is locked at agent session start, so we don't send voice in messages
             try {
-              // Ensure we're sending in the correct format
-              const message = JSON.stringify({
+              const payload: any = {
                 user_audio_chunk: base64Audio,
-              });
+                playback_speed: 0.6,
+              };
+              
+              const message = JSON.stringify(payload);
               
               // Verify message size (should be reasonable - typically 5-15KB per chunk)
               const messageSize = new Blob([message]).size;

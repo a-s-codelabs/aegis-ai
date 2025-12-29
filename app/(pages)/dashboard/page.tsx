@@ -12,6 +12,7 @@ import {
   getRandomConversation,
 } from '@/lib/utils/call-conversations';
 import { ElevenLabsClient } from '@/lib/utils/elevenlabs-client';
+import { VoiceSelector, getVoicePreference } from '@/components/voice-selector';
 
 interface UserSession {
   userId: string;
@@ -908,6 +909,7 @@ export default function DashboardPage() {
   const dialogueCountRef = useRef(0);
   const MIN_DIALOGUES_FOR_ANALYSIS = 10; // Minimum dialogues before comprehensive analysis
   const [blocklist, setBlocklist] = useState<string[]>([]);
+  const [voicePreference, setVoicePreference] = useState<'default' | 'female' | 'male'>('default');
   const [calls, setCalls] = useState<Call[]>([
     {
       id: '1',
@@ -998,6 +1000,29 @@ export default function DashboardPage() {
         console.error('[Dashboard] Error parsing session:', error);
         router.push('/auth/login');
       }
+
+      const savedVoice = getVoicePreference();
+      if (savedVoice) {
+        setVoicePreference(savedVoice);
+      }
+      
+      const handleVoicePreferenceChange = (event: CustomEvent) => {
+        const newVoice = event.detail.voice as 'default' | 'female' | 'male';
+        console.log('[Dashboard] Voice preference changed to:', newVoice);
+        setVoicePreference(newVoice);
+        if (aiVoiceClientRef.current) {
+          console.log('[Dashboard] Updating voice on active client');
+          aiVoiceClientRef.current.setVoice(newVoice);
+        } else {
+          console.log('[Dashboard] No active client, voice will be applied on next call');
+        }
+      };
+      
+      window.addEventListener('voicePreferenceChanged', handleVoicePreferenceChange as EventListener);
+      
+      return () => {
+        window.removeEventListener('voicePreferenceChanged', handleVoicePreferenceChange as EventListener);
+      };
     }
   }, [router]);
 
@@ -1572,10 +1597,15 @@ export default function DashboardPage() {
           aiVoiceClientRef.current = null;
         }
 
+        const currentVoice = getVoicePreference();
+        console.log('[Dashboard] 🎤 Starting ElevenLabs client');
+        console.log('[Dashboard] 📋 Voice from getVoicePreference():', currentVoice);
+        console.log('[Dashboard] 💾 localStorage voicePreference:', localStorage.getItem('voicePreference'));
+        console.log('[Dashboard] 🔄 voicePreference state:', voicePreference);
+        
         aiVoiceClientRef.current = new ElevenLabsClient({
-          // Optional local fallback greeting; add the file under /public/sounds if desired.
-          // fallbackGreetingAudioUrl: '/sounds/ai-greeting.mp3',
-          playbackRate: 0.6, // 60% speed - slower and clearer for better understanding
+          playbackRate: 0.6,
+          voice: currentVoice,
           onUserTranscript: async (text: string) => {
             console.log('[Dashboard] Caller said:', text);
 
@@ -1871,9 +1901,11 @@ export default function DashboardPage() {
   const leftContent = (
     <>
       <div>
-        <h1 className="text-4xl lg:text-5xl font-bold leading-tight tracking-tight text-[#26d9bb] mb-4">
-          Anti-Scam Dashboard
-        </h1>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-4xl lg:text-5xl font-bold leading-tight tracking-tight text-[#26d9bb]">
+            Anti-Scam Dashboard
+          </h1>
+        </div>
         <p className="text-lg lg:text-xl text-slate-400 leading-relaxed">
           Monitor and manage your call protection in real-time. View call statistics, recent activity, and active call monitoring.
         </p>
@@ -1911,7 +1943,7 @@ export default function DashboardPage() {
         <h3 className="text-lg font-semibold text-white mb-4">
           Test Features
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="flex flex-col gap-3">
           {/* 
             NOTE: The explicit "Simulate Scam" and "Simulate Safe" buttons have been
             removed from the UI per request, but the underlying handlers remain
@@ -1947,7 +1979,7 @@ export default function DashboardPage() {
           <button
             onClick={simulateIncomingCall}
             disabled={!!activeCall || !!incomingCall}
-            className="flex flex-col items-center justify-center gap-2 bg-slate-800/90 border border-[#26d9bb]/30 rounded-xl p-4 hover:bg-slate-700/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+            className="flex flex-col items-center justify-center gap-2 bg-slate-800/90 border border-[#26d9bb]/30 rounded-xl p-4 hover:bg-slate-700/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg w-40 self-start"
           >
             <span className="material-symbols-outlined text-[#26d9bb] text-2xl">
               ring_volume
@@ -1956,6 +1988,15 @@ export default function DashboardPage() {
               Incoming Call
             </span>
           </button>
+
+          <VoiceSelector
+            onVoiceChange={(voice) => {
+              setVoicePreference(voice);
+              if (aiVoiceClientRef.current) {
+                aiVoiceClientRef.current.setVoice(voice);
+              }
+            }}
+          />
         </div>
       </div>
 
