@@ -54,10 +54,21 @@ export function TopNavbar({ title = 'Anti-Scam', icon = 'shield', isFullWidth = 
     ? 'absolute top-0 left-0 right-0 w-full z-50 bg-[#0B1121]/90 backdrop-blur-md border-b border-gray-800'
     : 'fixed top-4 left-1/2 -translate-x-1/2 w-full max-w-lg z-50 bg-[#0B1121]/90 backdrop-blur-md border-b border-gray-800 rounded-2xl';
 
+  const handleLogoClick = () => {
+    router.push('/home');
+  };
+
+  const handleProfileClick = () => {
+    router.push('/settings');
+  };
+
   return (
     <header className={positionClasses}>
       <div className="px-5 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <button
+          onClick={handleLogoClick}
+          className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+        >
           <div className="w-8 h-8 bg-[#26d9bb]/20 rounded-full flex items-center justify-center">
             <span
               className="material-symbols-outlined text-[#26d9bb] text-xl"
@@ -69,8 +80,11 @@ export function TopNavbar({ title = 'Anti-Scam', icon = 'shield', isFullWidth = 
           <h1 className="text-xl font-bold tracking-tight text-white">
             {title}
           </h1>
-        </div>
-        <div className="relative">
+        </button>
+        <button
+          onClick={handleProfileClick}
+          className="relative cursor-pointer hover:opacity-80 transition-opacity"
+        >
           {userSession ? (
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-100 to-amber-200 border-2 border-[#26d9bb]/30 flex items-center justify-center">
               <span className="text-sm font-bold text-amber-900">
@@ -83,7 +97,7 @@ export function TopNavbar({ title = 'Anti-Scam', icon = 'shield', isFullWidth = 
             </div>
           )}
           <span className="absolute top-0 right-0 w-3 h-3 bg-[#26d9bb] rounded-full border-2 border-[#0B1121]"></span>
-        </div>
+        </button>
       </div>
     </header>
   );
