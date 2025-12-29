@@ -12,7 +12,7 @@ import {
   getRandomConversation,
 } from '@/lib/utils/call-conversations';
 import { ElevenLabsClient } from '@/lib/utils/elevenlabs-client';
-import { VoiceSelector, getVoicePreference } from '@/components/voice-selector';
+import { VoiceSelector, getVoicePreference, getDiversionSensitivity } from '@/components/voice-selector';
 
 interface UserSession {
   userId: string;
@@ -1313,7 +1313,16 @@ export default function DashboardPage() {
         const duration = currentActiveCall.startTime
           ? Math.floor((Date.now() - currentActiveCall.startTime.getTime()) / 1000)
           : 0;
-        const isScam = currentActiveCall.risk > 40;
+        
+        // Get threshold based on sensitivity
+        const sensitivityLevel = getDiversionSensitivity();
+        const SCAM_THRESHOLDS = {
+          LOW: 60,
+          STANDARD: 40,
+          HIGH: 30,
+        };
+        const threshold = SCAM_THRESHOLDS[sensitivityLevel] || SCAM_THRESHOLDS.STANDARD;
+        const isScam = currentActiveCall.risk > threshold;
 
         const newCall: Call = {
           id: Date.now().toString(),
@@ -1540,6 +1549,9 @@ export default function DashboardPage() {
         dialogueCount: `${currentDialogueCount}/${MIN_DIALOGUES_FOR_ANALYSIS}`,
       });
 
+      // Get current sensitivity level
+      const sensitivityLevel = getDiversionSensitivity();
+      
       const response = await fetch('/api/analyze-realtime', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1547,6 +1559,7 @@ export default function DashboardPage() {
           callerText: text,
           conversationContext,
           dialogueCount: currentDialogueCount, // Pass dialogue count to API
+          sensitivityLevel, // Pass sensitivity level to API
         }),
       });
 
@@ -1555,10 +1568,20 @@ export default function DashboardPage() {
         const scamScore = analysis.scamScore || 0;
         const keywords = analysis.keywords || [];
 
+        // Get threshold based on sensitivity
+        const SCAM_THRESHOLDS = {
+          LOW: 60,
+          STANDARD: 40,
+          HIGH: 30,
+        };
+        const threshold = SCAM_THRESHOLDS[sensitivityLevel] || SCAM_THRESHOLDS.STANDARD;
+        
         console.log('[Dashboard] ✅ Scam analysis result:', {
           scamScore,
           keywords,
-          isScam: scamScore > 40,
+          isScam: scamScore > threshold,
+          threshold,
+          sensitivityLevel,
           dialogueCount: `${currentDialogueCount}/${MIN_DIALOGUES_FOR_ANALYSIS}`,
         });
 
@@ -1572,20 +1595,20 @@ export default function DashboardPage() {
           console.log(`[Dashboard] Final scam score: ${scamScore}`);
           console.log(`[Dashboard] Detected keywords: ${keywords.length > 0 ? keywords.join(', ') : 'None'}`);
           
-          // Make final decision after sufficient dialogue (threshold: >40% = scam)
-          if (scamScore > 40 || keywords.length > 0) {
-            console.log(`[Dashboard] 🚨 SCAM DETECTED: Score ${scamScore}% (threshold: >40%), Keywords: ${keywords.join(', ')}`);
+          // Make final decision after sufficient dialogue (threshold based on sensitivity)
+          if (scamScore > threshold || keywords.length > 0) {
+            console.log(`[Dashboard] 🚨 SCAM DETECTED: Score ${scamScore}% (threshold: >${threshold}%, sensitivity: ${sensitivityLevel}), Keywords: ${keywords.join(', ')}`);
             console.log(`[Dashboard] ❌ Call will be marked as SCAM and added to blocklist`);
             
             // Add to blocklist immediately if scam detected during conversation
-            if (activeCall && scamScore > 40) {
+            if (activeCall && scamScore > threshold) {
               setBlocklist((prev) =>
                 prev.includes(activeCall.number) ? prev : [activeCall.number, ...prev]
               );
               console.log(`[Dashboard] 🚫 Added ${activeCall.number} to blocklist (scam risk: ${scamScore}%)`);
             }
-          } else if (scamScore <= 40 && keywords.length === 0) {
-            console.log(`[Dashboard] ✅ SAFE CALL: No scam keywords, low score (${scamScore}%)`);
+          } else if (scamScore <= threshold && keywords.length === 0) {
+            console.log(`[Dashboard] ✅ SAFE CALL: No scam keywords, low score (${scamScore}%, threshold: ${threshold}%)`);
             console.log(`[Dashboard] 📞 Call will be redialed to user after conversation ends`);
           } else {
             console.log(`[Dashboard] ⚠️ UNCERTAIN: Score ${scamScore}%, needs review`);

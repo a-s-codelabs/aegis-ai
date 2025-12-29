@@ -35,6 +35,11 @@ export interface ElevenLabsClientOptions {
    */
   voice?: 'default' | 'female' | 'male';
   /**
+   * Voice style: 'Direct', 'Neutral', or 'Empathetic'
+   * Controls the conversation tone and style of the AI agent
+   */
+  voiceStyle?: 'Direct' | 'Neutral' | 'Empathetic';
+  /**
    * Callback when caller's speech is transcribed
    */
   onUserTranscript?: (text: string) => void;
@@ -62,6 +67,7 @@ export class ElevenLabsClient {
   private readonly options: ElevenLabsClientOptions;
   private readonly playbackRate: number;
   private voicePreference: 'default' | 'female' | 'male';
+  private voiceStyle: 'Direct' | 'Neutral' | 'Empathetic';
   private fallbackAudio: HTMLAudioElement | null = null;
   private mediaStream: MediaStream | null = null;
   private audioContext: AudioContext | null = null;
@@ -75,6 +81,19 @@ export class ElevenLabsClient {
     this.options = options ?? {};
     this.playbackRate = 0.6;
     this.voicePreference = this.options.voice ?? 'default';
+    
+    // Get voice style from options or localStorage
+    if (this.options.voiceStyle) {
+      this.voiceStyle = this.options.voiceStyle;
+    } else if (typeof window !== 'undefined') {
+      const savedStyle = localStorage.getItem('voiceStyle');
+      this.voiceStyle = (savedStyle === 'Direct' || savedStyle === 'Neutral' || savedStyle === 'Empathetic') 
+        ? savedStyle 
+        : 'Neutral';
+    } else {
+      this.voiceStyle = 'Neutral';
+    }
+    
     if (this.options.fallbackGreetingAudioUrl && typeof window !== 'undefined') {
       this.fallbackAudio = new Audio(this.options.fallbackGreetingAudioUrl);
     }
@@ -84,6 +103,14 @@ export class ElevenLabsClient {
     this.voicePreference = voice;
     // NOTE: Voice changes require a new agent session (new signed URL with different agent_id)
     // This method updates the preference for the next call, but current call will continue with original agent
+  }
+
+  setVoiceStyle(style: 'Direct' | 'Neutral' | 'Empathetic') {
+    this.voiceStyle = style;
+    // Save to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('voiceStyle', style);
+    }
   }
 
   /**
@@ -103,7 +130,10 @@ export class ElevenLabsClient {
       const res = await fetch('/api/elevenlabs-signed-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ voice: this.voicePreference }),
+        body: JSON.stringify({ 
+          voice: this.voicePreference,
+          voiceStyle: this.voiceStyle 
+        }),
       });
       if (!res.ok) {
         let errorMessage = `Failed to fetch signed URL: ${res.status} ${res.statusText}`;
@@ -313,9 +343,11 @@ export class ElevenLabsClient {
         if (this.ws) {
           const payload: any = {
             playback_speed: 0.6,
+            voice_style: this.voiceStyle, // Pass voice style to ElevenLabs
           };
           try {
             this.ws.send(JSON.stringify(payload));
+            console.log('[ElevenLabsClient] Voice style sent:', this.voiceStyle);
           } catch (error) {
             console.error('[ElevenLabsClient] Error sending initial config:', error);
           }

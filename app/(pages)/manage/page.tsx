@@ -66,6 +66,32 @@ export default function ManagePage() {
       const savedVoice = getVoicePreference();
       setSelectedVoiceAgent(savedVoice);
 
+      // Load diversion sensitivity preference from localStorage
+      const savedSensitivity = localStorage.getItem('diversionSensitivity') as SensitivityLevel | null;
+      const savedSensitivityValue = localStorage.getItem('diversionSensitivityValue');
+      if (savedSensitivity && ['LOW', 'STANDARD', 'HIGH'].includes(savedSensitivity)) {
+        setSensitivityLevel(savedSensitivity);
+      }
+      if (savedSensitivityValue) {
+        const value = Number(savedSensitivityValue);
+        if (!isNaN(value) && value >= 0 && value <= 100) {
+          setSensitivityValue(value);
+        }
+      }
+
+      // Load voice style preference from localStorage
+      const savedVoiceStyle = localStorage.getItem('voiceStyle') as VoiceStyle | null;
+      const savedVoiceStyleValue = localStorage.getItem('voiceStyleValue');
+      if (savedVoiceStyle && ['Direct', 'Neutral', 'Empathetic'].includes(savedVoiceStyle)) {
+        setVoiceStyle(savedVoiceStyle);
+      }
+      if (savedVoiceStyleValue) {
+        const value = Number(savedVoiceStyleValue);
+        if (!isNaN(value) && value >= 0 && value <= 100) {
+          setVoiceStyleValue(value);
+        }
+      }
+
       // Load divert call popup preference from localStorage (this controls both toggles)
       const savedDivertCallPopup = localStorage.getItem('divertCallPopupEnabled');
       if (savedDivertCallPopup !== null) {
@@ -144,32 +170,76 @@ export default function ManagePage() {
 
   // Update sensitivity level based on slider value
   useEffect(() => {
+    let newLevel: SensitivityLevel;
     if (sensitivityValue <= 33) {
-      setSensitivityLevel('LOW');
+      newLevel = 'LOW';
     } else if (sensitivityValue <= 66) {
-      setSensitivityLevel('STANDARD');
+      newLevel = 'STANDARD';
     } else {
-      setSensitivityLevel('HIGH');
+      newLevel = 'HIGH';
     }
-  }, [sensitivityValue]);
+    
+    if (newLevel !== sensitivityLevel) {
+      setSensitivityLevel(newLevel);
+      
+      // Save to localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('diversionSensitivity', newLevel);
+        localStorage.setItem('diversionSensitivityValue', String(sensitivityValue));
+        
+        // Dispatch event to notify other components
+        window.dispatchEvent(new CustomEvent('diversionSensitivityChanged', { 
+          detail: { level: newLevel, value: sensitivityValue } 
+        }));
+      }
+    }
+  }, [sensitivityValue, sensitivityLevel]);
 
   // Update voice style based on slider value
   useEffect(() => {
+    let newStyle: VoiceStyle;
     if (voiceStyleValue <= 33) {
-      setVoiceStyle('Direct');
+      newStyle = 'Direct';
     } else if (voiceStyleValue <= 66) {
-      setVoiceStyle('Neutral');
+      newStyle = 'Neutral';
     } else {
-      setVoiceStyle('Empathetic');
+      newStyle = 'Empathetic';
     }
-  }, [voiceStyleValue]);
+    
+    if (newStyle !== voiceStyle) {
+      setVoiceStyle(newStyle);
+      
+      // Save to localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('voiceStyle', newStyle);
+        localStorage.setItem('voiceStyleValue', String(voiceStyleValue));
+        
+        // Dispatch event to notify other components
+        window.dispatchEvent(new CustomEvent('voiceStyleChanged', { 
+          detail: { style: newStyle, value: voiceStyleValue } 
+        }));
+      }
+    }
+  }, [voiceStyleValue, voiceStyle]);
 
   const handleSensitivityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSensitivityValue(Number(e.target.value));
+    const newValue = Number(e.target.value);
+    setSensitivityValue(newValue);
+    
+    // Save to localStorage immediately
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('diversionSensitivityValue', String(newValue));
+    }
   };
 
   const handleVoiceStyleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setVoiceStyleValue(Number(e.target.value));
+    const newValue = Number(e.target.value);
+    setVoiceStyleValue(newValue);
+    
+    // Save to localStorage immediately
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('voiceStyleValue', String(newValue));
+    }
   };
 
   const handleVoiceAgentChange = async (agent: VoicePreference) => {
@@ -307,7 +377,7 @@ export default function ManagePage() {
         <div>
           <p className="text-[#94a3b8] text-sm leading-relaxed">
             When enabled, suspicious calls are automatically diverted to our AI
-            agent. The AI engages the caller to determine intent, and you'll
+            agent. The AI engages the caller to determine intent and you'll
             receive a real-time transcript.
           </p>
         </div>
