@@ -36,8 +36,8 @@ export function AppLayout({
   // Give a bit more breathing room in fullWidth (iPhone) mode so headers don't touch the notch
   const topPadding = !hideTopNavbar
     ? fullWidth
-      ? 'pt-28'
-      : 'pt-28'
+      ? 'pt-20'
+      : 'pt-20'
     : fullWidth
     ? 'pt-6'
     : '';

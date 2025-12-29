@@ -55,6 +55,7 @@ interface DashboardContentProps {
   getCallIcon: (status: Call['status']) => string;
   getCallStatusBadge: (status: Call['status'], risk?: number) => React.ReactElement;
   formatDuration: (seconds: number) => string;
+  router: ReturnType<typeof useRouter>;
 }
 
 // Full Page Monitoring Content Component (to be rendered inside iPhone)
@@ -100,6 +101,7 @@ function DashboardContent({
   getCallIcon,
   getCallStatusBadge,
   formatDuration,
+  router,
 }: DashboardContentProps) {
   return (
     <AppLayout fullWidth>
@@ -251,56 +253,65 @@ function DashboardContent({
 
         {/* Stats Cards */}
         <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="bg-slate-800/40 border border-slate-700/50 p-3 rounded-xl flex flex-col justify-between h-24 shadow-md">
-            <div className="flex justify-between items-start">
+          <div 
+            onClick={() => router.push('/dashboard/calls?type=all')}
+            className="bg-slate-800/40 border border-slate-700/50 p-3 rounded-xl flex flex-col justify-between h-24 shadow-md cursor-pointer hover:bg-slate-800/60 hover:border-slate-600/50 transition-all active:scale-[0.98]"
+          >
+            <div className="flex items-start gap-2">
+              <span className="text-blue-400">
+                <span className="material-symbols-outlined text-sm">
+                  call
+                </span>
+              </span>
               <span className="text-slate-400 text-[10px] font-medium uppercase leading-tight">
                 Total
                 <br />
                 Calls
               </span>
-              <span className="p-1 rounded-md bg-blue-500/10 text-blue-400">
-                <span className="material-symbols-outlined text-sm">
-                  call
-                </span>
-              </span>
             </div>
-            <span className="text-2xl font-bold text-white mt-1">
+            <span className="text-2xl font-bold text-white text-center">
               {stats.totalCalls}
             </span>
           </div>
 
-          <div className="bg-slate-800/40 border border-slate-700/50 p-3 rounded-xl flex flex-col justify-between h-24 shadow-md">
-            <div className="flex justify-between items-start">
+          <div 
+            onClick={() => router.push('/dashboard/calls?type=scam')}
+            className="bg-slate-800/40 border border-slate-700/50 p-3 rounded-xl flex flex-col justify-between h-24 shadow-md cursor-pointer hover:bg-slate-800/60 hover:border-slate-600/50 transition-all active:scale-[0.98]"
+          >
+            <div className="flex items-start gap-2">
+              <span className="text-red-500">
+                <span className="material-symbols-outlined text-sm">
+                  block
+                </span>
+              </span>
               <span className="text-slate-400 text-[10px] font-medium uppercase leading-tight">
                 Scam
                 <br />
                 Blocked
               </span>
-              <span className="p-1 rounded-md bg-red-500/10 text-red-500">
-                <span className="material-symbols-outlined text-sm">
-                  block
-                </span>
-              </span>
             </div>
-            <span className="text-2xl font-bold text-white mt-1">
+            <span className="text-2xl font-bold text-white text-center">
               {stats.scamBlocked}
             </span>
           </div>
 
-          <div className="bg-slate-800/40 border border-slate-700/50 p-3 rounded-xl flex flex-col justify-between h-24 shadow-md">
-            <div className="flex justify-between items-start">
+          <div 
+            onClick={() => router.push('/dashboard/calls?type=safe')}
+            className="bg-slate-800/40 border border-slate-700/50 p-3 rounded-xl flex flex-col justify-between h-24 shadow-md cursor-pointer hover:bg-slate-800/60 hover:border-slate-600/50 transition-all active:scale-[0.98]"
+          >
+            <div className="flex items-start gap-2">
+              <span className="text-green-500">
+                <span className="material-symbols-outlined text-sm">
+                  verified_user
+                </span>
+              </span>
               <span className="text-slate-400 text-[10px] font-medium uppercase leading-tight">
                 Safe
                 <br />
                 Calls
               </span>
-              <span className="p-1 rounded-md bg-green-500/10 text-green-500">
-                <span className="material-symbols-outlined text-sm">
-                  verified_user
-                </span>
-              </span>
             </div>
-            <span className="text-2xl font-bold text-white mt-1">
+            <span className="text-2xl font-bold text-white text-center">
               {stats.safeCalls}
             </span>
           </div>
@@ -1016,6 +1027,20 @@ export default function DashboardPage() {
       if (savedDivertCallPopup !== null) {
         setDivertCallPopupEnabled(savedDivertCallPopup === 'true');
       }
+
+      // Load calls from localStorage
+      const savedCalls = localStorage.getItem('calls');
+      if (savedCalls) {
+        try {
+          const parsedCalls = JSON.parse(savedCalls).map((call: any) => ({
+            ...call,
+            timestamp: new Date(call.timestamp),
+          }));
+          setCalls(parsedCalls);
+        } catch (error) {
+          console.error('[Dashboard] Error parsing saved calls:', error);
+        }
+      }
       
       const handleVoicePreferenceChange = (event: CustomEvent) => {
         const newVoice = event.detail.voice as 'default' | 'female' | 'male';
@@ -1045,6 +1070,17 @@ export default function DashboardPage() {
       };
     }
   }, [router]);
+
+  // Save calls to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window !== 'undefined' && calls.length > 0) {
+      try {
+        localStorage.setItem('calls', JSON.stringify(calls));
+      } catch (error) {
+        console.error('[Dashboard] Error saving calls to localStorage:', error);
+      }
+    }
+  }, [calls]);
 
   // Simulate active call monitoring (commented out - only for testing)
   // useEffect(() => {
@@ -1915,6 +1951,7 @@ export default function DashboardPage() {
       getCallIcon={getCallIcon}
       getCallStatusBadge={getCallStatusBadge}
       formatDuration={formatDuration}
+      router={router}
     />
   );
 
