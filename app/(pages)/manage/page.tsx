@@ -66,13 +66,16 @@ export default function ManagePage() {
       const savedVoice = getVoicePreference();
       setSelectedVoiceAgent(savedVoice);
 
-      // Load divert call popup preference from localStorage
+      // Load divert call popup preference from localStorage (this controls both toggles)
       const savedDivertCallPopup = localStorage.getItem('divertCallPopupEnabled');
       if (savedDivertCallPopup !== null) {
-        setDivertCallPopupEnabled(savedDivertCallPopup === 'true');
+        const value = savedDivertCallPopup === 'true';
+        setDivertCallPopupEnabled(value);
+        setIsAiGuardianEnabled(value); // Sync AI Call Guardian with Divert Call Popup
       } else {
         // Default to true if not set
         setDivertCallPopupEnabled(true);
+        setIsAiGuardianEnabled(true);
       }
     }
   }, [router]);
@@ -109,9 +112,12 @@ export default function ManagePage() {
       const handleDivertCallPopupChange = () => {
         const savedDivertCallPopup = localStorage.getItem('divertCallPopupEnabled');
         if (savedDivertCallPopup !== null) {
-          setDivertCallPopupEnabled(savedDivertCallPopup === 'true');
+          const value = savedDivertCallPopup === 'true';
+          setDivertCallPopupEnabled(value);
+          setIsAiGuardianEnabled(value); // Sync AI Call Guardian with Divert Call Popup
         } else {
           setDivertCallPopupEnabled(true);
+          setIsAiGuardianEnabled(true);
         }
       };
 
@@ -255,30 +261,44 @@ export default function ManagePage() {
                   <input
                     type="checkbox"
                     checked={isAiGuardianEnabled}
-                    onChange={(e) => setIsAiGuardianEnabled(e.target.checked)}
+                    onChange={(e) => {
+                      const newValue = e.target.checked;
+                      setIsAiGuardianEnabled(newValue);
+                      setDivertCallPopupEnabled(newValue);
+                      // Persist to localStorage (this controls both toggles)
+                      if (typeof window !== 'undefined') {
+                        localStorage.setItem('divertCallPopupEnabled', String(newValue));
+                        // Dispatch event to notify other components
+                        window.dispatchEvent(new Event('divertCallPopupChanged'));
+                      }
+                    }}
                     className="peer sr-only"
                   />
                   <div className="h-[22px] w-[22px] rounded-full bg-white shadow-sm transition-all duration-300"></div>
                 </label>
               </div>
-              <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent my-4"></div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="relative flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#26d9bb] opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#26d9bb]"></span>
+              {isAiGuardianEnabled && (
+                <>
+                  <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent my-4"></div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="relative flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#26d9bb] opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#26d9bb]"></span>
+                      </div>
+                      <span className="text-[#26d9bb] font-semibold text-xs tracking-wide uppercase">
+                        Protection Active
+                      </span>
+                    </div>
+                    <button className="text-xs font-medium text-[#94a3b8] hover:text-white transition-colors flex items-center gap-1">
+                      View Log{' '}
+                      <span className="material-symbols-outlined text-[14px]">
+                        arrow_forward
+                      </span>
+                    </button>
                   </div>
-                  <span className="text-[#26d9bb] font-semibold text-xs tracking-wide uppercase">
-                    Protection Active
-                  </span>
-                </div>
-                <button className="text-xs font-medium text-[#94a3b8] hover:text-white transition-colors flex items-center gap-1">
-                  View Log{' '}
-                  <span className="material-symbols-outlined text-[14px]">
-                    arrow_forward
-                  </span>
-                </button>
-              </div>
+                </>
+              )}
             </div>
           </div>
         

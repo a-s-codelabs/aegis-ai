@@ -276,10 +276,10 @@ export default function SettingsPage() {
               onClick={() => {
                 const newValue = !divertCallPopupEnabled;
                 setDivertCallPopupEnabled(newValue);
-                // Persist to localStorage
+                // Persist to localStorage (this controls both Divert Call Popup and AI Call Guardian)
                 if (typeof window !== 'undefined') {
                   localStorage.setItem('divertCallPopupEnabled', String(newValue));
-                  // Dispatch event to notify other components
+                  // Dispatch event to notify other components (including manage page)
                   window.dispatchEvent(new Event('divertCallPopupChanged'));
                 }
               }}
