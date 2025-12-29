@@ -11,6 +11,12 @@
  * CRITICAL: ElevenLabs Agents lock voice at session start.
  * Voice cannot be changed during an active call.
  * To switch voices, user must start a new call with the selected agent.
+ * 
+ * NOTE: The ConvAI API's get-signed-url endpoint doesn't support media streaming configuration.
+ * For media streaming, audio capture needs to be handled differently:
+ * - Option 1: Capture audio on the client side from the browser WebSocket connection
+ * - Option 2: Use ElevenLabs Agents Platform API (different from ConvAI) if available
+ * - Option 3: Set up a proxy WebSocket server that captures audio between browser and ElevenLabs
  */
 
 export const maxDuration = 60
@@ -72,6 +78,8 @@ export async function POST(req: Request) {
 
     console.log('[ElevenLabs] Requesting signed URL for agent:', agentId, `(voice: ${validatedVoice}, style: ${validatedVoiceStyle})`);
 
+    // Use the original ConvAI API endpoint (GET /v1/convai/conversation/get-signed-url)
+    // This endpoint works and returns a signed WebSocket URL
     const url = `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${agentId}`;
 
     // Get signed URL from ElevenLabs
@@ -117,6 +125,8 @@ export async function POST(req: Request) {
         userFriendlyMessage = 'Your ElevenLabs API key is missing the required "convai_write" permission. Please update your API key in the ElevenLabs dashboard to include ConvAI permissions.';
       } else if (errorMessage.includes('invalid') || errorMessage.includes('unauthorized')) {
         userFriendlyMessage = 'Invalid or unauthorized ElevenLabs API key. Please check your ELEVENLABS_API_KEY in your environment variables.';
+      } else if (response.status === 404) {
+        userFriendlyMessage = 'ElevenLabs API endpoint not found. Please check that your agent ID is correct and you have access to the ConvAI API.';
       }
 
       return Response.json(
@@ -130,7 +140,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const data = await response.json()
+    const data = await response.json();
 
     if (!data.signed_url) {
       console.error('[ElevenLabs] No signed_url in response:', data);
@@ -149,7 +159,7 @@ export async function POST(req: Request) {
       voiceStyle: validatedVoiceStyle 
     })
   } catch (error) {
-    console.error('[ElevenLabs] Error getting signed URL:', error);
+    console.error('[ElevenLabs] Error starting conversation:', error);
     return Response.json(
       {
         error: 'Internal server error',

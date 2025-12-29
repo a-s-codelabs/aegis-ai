@@ -76,6 +76,7 @@ export class ElevenLabsClient {
   private audioQueue: string[] = [];
   private isPlayingAudio = false;
   private isCleaningUp = false;
+  private conversationId: string | null = null;
 
   constructor(options?: ElevenLabsClientOptions) {
     this.options = options ?? {};
@@ -858,6 +859,25 @@ export class ElevenLabsClient {
       const base64Audio = eventData.audio_event.audio_base_64;
       if (base64Audio) {
         this.playAudio(base64Audio);
+        
+        // Send audio output chunk to backend for recording
+        // This captures AI agent voice (audio_output)
+        if (this.conversationId) {
+          this.sendAudioChunkToBackend('output', base64Audio).catch((error) => {
+            console.error('[ElevenLabsClient] Error sending output audio chunk:', error);
+          });
+        }
+      }
+    }
+
+    // Handle audio_input if ElevenLabs sends caller audio back
+    // Note: Usually we capture input from microphone, but if ElevenLabs echoes it, capture here too
+    if (eventData.type === 'audio_input' && eventData.audio_input_event) {
+      const base64Audio = eventData.audio_input_event.audio_base_64;
+      if (base64Audio && this.conversationId) {
+        this.sendAudioChunkToBackend('input', base64Audio).catch((error) => {
+          console.error('[ElevenLabsClient] Error sending input audio chunk:', error);
+        });
       }
     }
 

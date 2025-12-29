@@ -47,13 +47,13 @@ interface Call {
   timestamp: Date;
   duration: number;
   status:
-    | 'incoming'
-    | 'diverted'
-    | 'scam'
-    | 'safe'
-    | 'active'
-    | 'error'
-    | 'completed';
+  | 'incoming'
+  | 'diverted'
+  | 'scam'
+  | 'safe'
+  | 'active'
+  | 'error'
+  | 'completed';
   transcript?: { speaker: string; text: string }[];
   scamScore?: number;
   scamKeywords?: string[];
@@ -280,8 +280,7 @@ export default function UserDashboard() {
   const simulateIncomingCall = (testPhoneNumber?: string) => {
     const phoneNumber =
       testPhoneNumber ||
-      `+1 (${Math.floor(Math.random() * 900) + 100}) ${
-        Math.floor(Math.random() * 900) + 100
+      `+1 (${Math.floor(Math.random() * 900) + 100}) ${Math.floor(Math.random() * 900) + 100
       }-${Math.floor(Math.random() * 9000) + 1000}`;
 
     // Check if number is in user's contact list
@@ -339,9 +338,8 @@ export default function UserDashboard() {
       const { conversation } = data;
 
       // Create a call entry with the simulated transcript
-      const phoneNumber = `+1 (${Math.floor(Math.random() * 900) + 100}) ${
-        Math.floor(Math.random() * 900) + 100
-      }-${Math.floor(Math.random() * 9000) + 1000}`;
+      const phoneNumber = `+1 (${Math.floor(Math.random() * 900) + 100}) ${Math.floor(Math.random() * 900) + 100
+        }-${Math.floor(Math.random() * 9000) + 1000}`;
 
       const newCall: Call = {
         id: Date.now().toString(),
@@ -385,8 +383,7 @@ export default function UserDashboard() {
     } catch (error) {
       console.error('[Simulate] Error simulating conversation:', error);
       alert(
-        `Failed to simulate conversation: ${
-          error instanceof Error ? error.message : 'Unknown error'
+        `Failed to simulate conversation: ${error instanceof Error ? error.message : 'Unknown error'
         }`
       );
     }
@@ -598,7 +595,7 @@ export default function UserDashboard() {
           });
           alert(
             'ElevenLabs API quota limit exceeded. Please check your account limits or upgrade your plan.\n\n' +
-              'The conversation could not continue due to quota restrictions.'
+            'The conversation could not continue due to quota restrictions.'
           );
           cleanup();
           setIsMonitoring(false);
@@ -650,8 +647,7 @@ export default function UserDashboard() {
             // Log every 50 chunks (roughly every second) to track audio flow
             if (audioChunkCount % 50 === 0) {
               console.log(
-                `[Audio] Sent ${audioChunkCount} audio chunks to agent${
-                  hasAudio ? ' (audio detected)' : ' (silence)'
+                `[Audio] Sent ${audioChunkCount} audio chunks to agent${hasAudio ? ' (audio detected)' : ' (silence)'
                 }`
               );
             }
@@ -691,8 +687,7 @@ export default function UserDashboard() {
 
       // Show error to user (you can add a toast notification here)
       alert(
-        `Failed to start AI monitoring: ${
-          error instanceof Error ? error.message : 'Unknown error'
+        `Failed to start AI monitoring: ${error instanceof Error ? error.message : 'Unknown error'
         }\n\nPlease check:\n1. Your ElevenLabs API key is set in environment variables\n2. Your ElevenLabs Agent ID is correct\n3. Your microphone permissions are granted`
       );
     }
@@ -1046,13 +1041,12 @@ export default function UserDashboard() {
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
                   <div
-                    className={`h-full transition-all ${
-                      activeCall.scamScore > 70
+                    className={`h-full transition-all ${activeCall.scamScore > 70
                         ? 'bg-red-600'
                         : activeCall.scamScore > 40
-                        ? 'bg-yellow-600'
-                        : 'bg-green-600'
-                    }`}
+                          ? 'bg-yellow-600'
+                          : 'bg-green-600'
+                      }`}
                     style={{ width: `${activeCall.scamScore}%` }}
                   />
                 </div>
@@ -1077,9 +1071,8 @@ export default function UserDashboard() {
               {activeCall.transcript?.map((entry, idx) => (
                 <div
                   key={idx}
-                  className={`p-3 rounded-lg ${
-                    entry.speaker === 'AI Agent' ? 'bg-primary/10' : 'bg-muted'
-                  }`}
+                  className={`p-3 rounded-lg ${entry.speaker === 'AI Agent' ? 'bg-primary/10' : 'bg-muted'
+                    }`}
                 >
                   <p className="text-xs font-semibold text-foreground mb-1">
                     {entry.speaker}

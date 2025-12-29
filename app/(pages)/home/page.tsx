@@ -69,42 +69,152 @@ function HomeContent() {
     }
   }, []);
 
-  const [recentCalls] = useState<RecentCall[]>([
-    {
-      id: '1',
-      number: '+1 (415) 555-0192',
-      status: 'spam',
-      timeAgo: '12 mins ago',
-    },
-    {
-      id: '2',
-      name: 'Mom',
-      number: '+1 (555) 123-4567',
-      status: 'incoming',
-      timeAgo: '2 hours ago',
-    },
-    {
-      id: '3',
-      number: '+1 (202) 555-0143',
-      status: 'outgoing',
-      timeAgo: '5 hours ago',
-    },
-  ]);
+  const [recentCalls, setRecentCalls] = useState<RecentCall[]>([]);
+  const [blockedNumbers, setBlockedNumbers] = useState<BlockedNumber[]>([]);
 
-  const [blockedNumbers] = useState<BlockedNumber[]>([
-    {
-      id: '1',
-      number: '+1 (724) 719-4042',
-      riskLevel: 'High',
-      riskPercentage: 95,
-    },
-    {
-      id: '2',
-      number: '+1 (184) 768-4419',
-      riskLevel: 'Critical',
-      riskPercentage: 98,
-    },
-  ]);
+  // Load recent calls and blocklist from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Load recent calls from call logs
+      const callLogsData = localStorage.getItem('callLogs');
+      if (callLogsData) {
+        try {
+          const callLogs = JSON.parse(callLogsData);
+          // Convert call logs to recent calls format (show last 3)
+          const recent = callLogs.slice(0, 3).map((log: any, index: number) => {
+            const timestamp = new Date(log.timestamp);
+            const now = new Date();
+            const diffMs = now.getTime() - timestamp.getTime();
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMins / 60);
+            
+            let timeAgo = '';
+            if (diffMins < 1) {
+              timeAgo = 'Just now';
+            } else if (diffMins < 60) {
+              timeAgo = `${diffMins} ${diffMins === 1 ? 'min' : 'mins'} ago`;
+            } else {
+              timeAgo = `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+            }
+
+            return {
+              id: log.id || `call-${index}`,
+              number: log.number,
+              status: log.status === 'scam' ? 'spam' : log.status === 'safe' ? 'incoming' : 'outgoing',
+              timeAgo,
+            };
+          });
+          setRecentCalls(recent);
+        } catch (error) {
+          console.error('[Home] Error parsing call logs:', error);
+        }
+      }
+
+      // Load blocklist from localStorage
+      const blocklistData = localStorage.getItem('blocklist');
+      if (blocklistData) {
+        try {
+          const blocklist = JSON.parse(blocklistData);
+          // Convert blocklist to blocked numbers format
+          // We need to get risk info from call logs
+          const callLogsData2 = localStorage.getItem('callLogs');
+          const callLogs = callLogsData2 ? JSON.parse(callLogsData2) : [];
+          
+          const blocked = blocklist.map((number: string, index: number) => {
+            // Find the call log entry for this number to get risk info
+            const callLog = callLogs.find((log: any) => log.number === number);
+            const riskPercentage = callLog?.risk || 95;
+            
+            return {
+              id: `blocked-${index}`,
+              number,
+              riskLevel: riskPercentage >= 90 ? 'Critical' : 'High',
+              riskPercentage,
+            };
+          });
+          setBlockedNumbers(blocked);
+        } catch (error) {
+          console.error('[Home] Error parsing blocklist:', error);
+        }
+      }
+
+      // Listen for storage changes and custom events to update in real-time
+      const handleStorageChange = () => {
+        // Reload recent calls
+        const callLogsData = localStorage.getItem('callLogs');
+        if (callLogsData) {
+          try {
+            const callLogs = JSON.parse(callLogsData);
+            const recent = callLogs.slice(0, 3).map((log: any, index: number) => {
+              const timestamp = new Date(log.timestamp);
+              const now = new Date();
+              const diffMs = now.getTime() - timestamp.getTime();
+              const diffMins = Math.floor(diffMs / 60000);
+              const diffHours = Math.floor(diffMins / 60);
+              
+              let timeAgo = '';
+              if (diffMins < 1) {
+                timeAgo = 'Just now';
+              } else if (diffMins < 60) {
+                timeAgo = `${diffMins} ${diffMins === 1 ? 'min' : 'mins'} ago`;
+              } else {
+                timeAgo = `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+              }
+
+              return {
+                id: log.id || `call-${index}`,
+                number: log.number,
+                status: log.status === 'scam' ? 'spam' : log.status === 'safe' ? 'incoming' : 'outgoing',
+                timeAgo,
+              };
+            });
+            setRecentCalls(recent);
+          } catch (error) {
+            console.error('[Home] Error parsing call logs:', error);
+          }
+        }
+
+        // Reload blocklist
+        const blocklistData = localStorage.getItem('blocklist');
+        if (blocklistData) {
+          try {
+            const blocklist = JSON.parse(blocklistData);
+            const callLogsData2 = localStorage.getItem('callLogs');
+            const callLogs = callLogsData2 ? JSON.parse(callLogsData2) : [];
+            
+            const blocked = blocklist.map((number: string, index: number) => {
+              const callLog = callLogs.find((log: any) => log.number === number);
+              const riskPercentage = callLog?.risk || 95;
+              
+              return {
+                id: `blocked-${index}`,
+                number,
+                riskLevel: riskPercentage >= 90 ? 'Critical' : 'High',
+                riskPercentage,
+              };
+            });
+            setBlockedNumbers(blocked);
+          } catch (error) {
+            console.error('[Home] Error parsing blocklist:', error);
+          }
+        }
+      };
+
+      const handleCallLogsUpdated = () => {
+        handleStorageChange();
+      };
+
+      window.addEventListener('storage', handleStorageChange);
+      window.addEventListener('callLogsUpdated', handleCallLogsUpdated);
+      window.addEventListener('blocklistUpdated', handleStorageChange);
+      
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('callLogsUpdated', handleCallLogsUpdated);
+        window.removeEventListener('blocklistUpdated', handleStorageChange);
+      };
+    }
+  }, []);
 
   const [whitelistItems, setWhitelistItems] = useState<WhitelistItem[]>([]);
   const [isAddWhitelistDialogOpen, setIsAddWhitelistDialogOpen] = useState(false);

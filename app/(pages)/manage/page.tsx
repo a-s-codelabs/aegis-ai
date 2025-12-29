@@ -385,7 +385,10 @@ export default function ManagePage() {
                         Protection Active
                       </span>
                     </div>
-                    <button className="text-xs font-medium text-[#94a3b8] hover:text-white transition-colors flex items-center gap-1">
+                    <button 
+                      onClick={() => router.push('/call-logs')}
+                      className="text-xs font-medium text-[#94a3b8] hover:text-white transition-colors flex items-center gap-1"
+                    >
                       View Log{' '}
                       <span className="material-symbols-outlined text-[14px]">
                         arrow_forward

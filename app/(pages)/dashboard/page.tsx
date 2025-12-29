@@ -160,20 +160,18 @@ function DashboardContent({
                   )}
                 </span>
                 <span
-                  className={`font-bold ${
-                    activeCall.risk < 20 ? 'text-green-500' : 'text-red-500'
-                  }`}
+                  className={`font-bold ${activeCall.risk < 20 ? 'text-green-500' : 'text-red-500'
+                    }`}
                 >
                   {Math.max(activeCall.risk, realtimeScamScore)}%
                 </span>
               </div>
               <div className="w-full bg-slate-700 rounded-full h-2">
                 <div
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    Math.max(activeCall.risk, realtimeScamScore) < 20
+                  className={`h-2 rounded-full transition-all duration-300 ${Math.max(activeCall.risk, realtimeScamScore) < 20
                       ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]'
                       : 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]'
-                  }`}
+                    }`}
                   style={{
                     width: `${Math.max(activeCall.risk, realtimeScamScore)}%`,
                   }}
@@ -345,8 +343,7 @@ function DashboardContent({
               >
                 <div className="flex items-center gap-3">
                   <div
-                    className={`w-10 h-10 rounded-full bg-slate-700/50 flex items-center justify-center border border-slate-600/50 group-hover:border-slate-500/50 transition-colors ${
-                      call.status === 'scam'
+                    className={`w-10 h-10 rounded-full bg-slate-700/50 flex items-center justify-center border border-slate-600/50 group-hover:border-slate-500/50 transition-colors ${call.status === 'scam'
                         ? 'text-red-500'
                         : call.status === 'safe'
                         ? 'text-green-500'
@@ -380,8 +377,7 @@ function DashboardContent({
                     <span className="text-[10px] text-slate-400 mb-1">
                       Risk:{' '}
                       <span
-                        className={`font-bold ${
-                          call.status === 'scam'
+                        className={`font-bold ${call.status === 'scam'
                             ? 'text-red-500'
                             : call.status === 'safe'
                             ? 'text-green-500'
@@ -452,22 +448,20 @@ function FullPageMonitoringContent({
           <div className="flex justify-between items-center w-full">
             <div className="flex items-center gap-2">
               <div
-                className={`relative flex h-3 w-3 ${
-                  activeCall.risk < 20
+                className={`relative flex h-3 w-3 ${activeCall.risk < 20
                     ? 'bg-green-500'
                     : activeCall.risk < 70
-                    ? 'bg-orange-500'
-                    : 'bg-red-500'
-                } rounded-full`}
+                      ? 'bg-orange-500'
+                      : 'bg-red-500'
+                  } rounded-full`}
               >
                 <span
-                  className={`absolute inline-flex h-full w-full rounded-full ${
-                    activeCall.risk < 20
+                  className={`absolute inline-flex h-full w-full rounded-full ${activeCall.risk < 20
                       ? 'bg-green-400'
                       : activeCall.risk < 70
-                      ? 'bg-orange-400'
-                      : 'bg-red-400'
-                  } opacity-75 animate-ping`}
+                        ? 'bg-orange-400'
+                        : 'bg-red-400'
+                    } opacity-75 animate-ping`}
                 ></span>
               </div>
               <div>
@@ -508,7 +502,7 @@ function FullPageMonitoringContent({
           )}
         </div>
 
-          {/* Risk Level Section */}
+        {/* Risk Level Section */}
         <div className="w-full p-4">
           <div className="bg-slate-900/60 border border-slate-700/50 rounded-xl p-4 mb-3">
             <div className="flex justify-between items-center mb-2">
@@ -521,30 +515,28 @@ function FullPageMonitoringContent({
                 )}
               </span>
               <span
-                className={`font-bold text-lg ${
-                  Math.max(activeCall.risk, realtimeScamScore) < 20
+                className={`font-bold text-lg ${Math.max(activeCall.risk, realtimeScamScore) < 20
                     ? 'text-green-500'
                     : Math.max(activeCall.risk, realtimeScamScore) < 50
-                    ? 'text-yellow-500'
-                    : Math.max(activeCall.risk, realtimeScamScore) < 70
-                    ? 'text-orange-500'
-                    : 'text-red-500'
-                }`}
+                      ? 'text-yellow-500'
+                      : Math.max(activeCall.risk, realtimeScamScore) < 70
+                        ? 'text-orange-500'
+                        : 'text-red-500'
+                  }`}
               >
                 {Math.max(activeCall.risk, realtimeScamScore)}%
               </span>
             </div>
             <div className="w-full bg-slate-700 rounded-full h-2">
               <div
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  Math.max(activeCall.risk, realtimeScamScore) < 20
+                className={`h-2 rounded-full transition-all duration-300 ${Math.max(activeCall.risk, realtimeScamScore) < 20
                     ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]'
                     : Math.max(activeCall.risk, realtimeScamScore) < 50
-                    ? 'bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.5)]'
-                    : Math.max(activeCall.risk, realtimeScamScore) < 70
-                    ? 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]'
-                    : 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]'
-                }`}
+                      ? 'bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.5)]'
+                      : Math.max(activeCall.risk, realtimeScamScore) < 70
+                        ? 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]'
+                        : 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]'
+                  }`}
                 style={{
                   width: `${Math.max(activeCall.risk, realtimeScamScore)}%`,
                 }}
@@ -591,11 +583,10 @@ function FullPageMonitoringContent({
                 visibleTranscript.map((entry, idx) => (
                   <div
                     key={idx}
-                    className={`text-xs animate-in fade-in slide-in-from-bottom-2 duration-300 ${
-                      entry.speaker === 'AI Agent'
+                    className={`text-xs animate-in fade-in slide-in-from-bottom-2 duration-300 ${entry.speaker === 'AI Agent'
                         ? 'bg-slate-800/50 p-3 rounded-lg border border-slate-700/30'
                         : 'bg-slate-800/30 p-3 rounded-lg'
-                    }`}
+                      }`}
                   >
                     {entry.speaker === 'AI Agent' ? (
                       <>
@@ -911,6 +902,7 @@ export default function DashboardPage() {
     keywords: string[];
     transcript: TranscriptEntry[];
     startTime?: Date;
+    conversationId?: string;
   } | null>(null);
   const [visibleTranscript, setVisibleTranscript] = useState<TranscriptEntry[]>(
     []
@@ -1036,7 +1028,18 @@ export default function DashboardPage() {
       if (savedVoice) {
         setVoicePreference(savedVoice);
       }
-      
+
+      // Load blocklist from localStorage
+      const savedBlocklist = localStorage.getItem('blocklist');
+      if (savedBlocklist) {
+        try {
+          const parsedBlocklist = JSON.parse(savedBlocklist);
+          setBlocklist(Array.isArray(parsedBlocklist) ? parsedBlocklist : []);
+        } catch (error) {
+          console.error('[Dashboard] Error parsing blocklist:', error);
+        }
+      }
+
       // Load divert call popup preference from localStorage
       const savedDivertCallPopup = localStorage.getItem('divertCallPopupEnabled');
       if (savedDivertCallPopup !== null) {
@@ -1068,17 +1071,17 @@ export default function DashboardPage() {
           console.log('[Dashboard] No active client, voice will be applied on next call');
         }
       };
-      
+
       const handleDivertCallPopupChange = () => {
         const savedDivertCallPopup = localStorage.getItem('divertCallPopupEnabled');
         if (savedDivertCallPopup !== null) {
           setDivertCallPopupEnabled(savedDivertCallPopup === 'true');
         }
       };
-      
+
       window.addEventListener('voicePreferenceChanged', handleVoicePreferenceChange as EventListener);
       window.addEventListener('divertCallPopupChanged', handleDivertCallPopupChange);
-      
+
       return () => {
         window.removeEventListener('voicePreferenceChanged', handleVoicePreferenceChange as EventListener);
         window.removeEventListener('divertCallPopupChanged', handleDivertCallPopupChange);
@@ -1220,7 +1223,7 @@ export default function DashboardPage() {
       try {
         const result = await analyzeConversation(visibleTranscript);
         const isSafe = result.scamScore <= 40; // Safe if score is 40% or below
-        
+
         setActiveCall((prev) => {
           if (!prev) return prev;
           return {
@@ -1235,15 +1238,15 @@ export default function DashboardPage() {
         const callerMessages = visibleTranscript.filter((e) => e.speaker === 'Caller');
         const hasEnoughDialogue = callerMessages.length >= MIN_DIALOGUES_FOR_ANALYSIS;
         const hasScamKeywords = result.keywords && result.keywords.length > 0;
-        
+
         // Only redial if:
         // 1. We have enough dialogue (10+ caller messages)
         // 2. No scam keywords detected
         // 3. Scam score is low (< 40 for safety)
         // 4. We haven't already triggered re-ring
         if (
-          isSafe && 
-          !hasTriggeredSafeReRingRef.current && 
+          isSafe &&
+          !hasTriggeredSafeReRingRef.current &&
           hasEnoughDialogue &&
           !hasScamKeywords &&
           result.scamScore < 40
@@ -1253,19 +1256,19 @@ export default function DashboardPage() {
           console.log(`[Dashboard] - Scam score: ${result.scamScore}`);
           console.log(`[Dashboard] - Keywords: ${result.keywords.length > 0 ? result.keywords.join(', ') : 'None (safe)'}`);
           console.log('[Dashboard] - Redialing to user...');
-          
+
           hasTriggeredSafeReRingRef.current = true;
-          
+
           // Extract call purpose from caller's messages
           try {
             const callerMessages = visibleTranscript.filter((e) => e.speaker === 'Caller');
             const callerText = callerMessages.map((e) => e.text).join(' ');
-            
+
             // Use caller's own words as purpose
             let purpose = 'General inquiry';
             if (callerText.length > 0) {
               // Take first 150 characters of caller's combined messages as purpose
-              purpose = callerText.length > 150 
+              purpose = callerText.length > 150
                 ? callerText.substring(0, 150) + '...'
                 : callerText;
             }
@@ -1283,10 +1286,10 @@ export default function DashboardPage() {
               purpose,
               isSafe: true,
             });
-            
+
             // Close the monitoring view
             setIsFullPageMonitoring(false);
-            
+
             // Start ringtone
             startRingtone();
           } catch (error) {
@@ -1297,13 +1300,13 @@ export default function DashboardPage() {
               aiVoiceClientRef.current.stop();
               aiVoiceClientRef.current = null;
             }
-            
+
             setIncomingCall({
               number: currentCallNumber,
               purpose: 'General inquiry',
               isSafe: true,
             });
-            
+
             setIsFullPageMonitoring(false);
             startRingtone();
           }
@@ -1321,7 +1324,7 @@ export default function DashboardPage() {
     };
   }, [visibleTranscript, isFullPageMonitoring]);
 
-  const endCall = useCallback((reason?: 'auto-terminated' | 'manual') => {
+  const endCall = useCallback(async (reason?: 'auto-terminated' | 'manual') => {
     // Save call to history before clearing
     setActiveCall((currentActiveCall) => {
       if (currentActiveCall) {
@@ -1356,11 +1359,102 @@ export default function DashboardPage() {
 
         setCalls((prev) => [newCall, ...prev]);
 
+        // End call recording and get audio URL (async operation outside setState)
+        if (currentActiveCall.conversationId && typeof window !== 'undefined') {
+          fetch('/api/calls/end', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              conversationId: currentActiveCall.conversationId,
+              phoneNumber: currentActiveCall.number,
+              duration,
+              risk: currentActiveCall.risk,
+              status: finalStatus,
+            }),
+          })
+            .then(async (response) => {
+              if (!response.ok) {
+                const errorText = await response.text();
+                console.error('[Dashboard] Failed to end call recording:', response.status, errorText);
+                return null;
+              }
+              return response.json();
+            })
+            .then((data) => {
+              const audioUrl = data?.audioUrl || null;
+              console.log('[Dashboard] 🎙️ Call recording ended, audio URL:', audioUrl);
+              console.log('[Dashboard] Full response data:', data);
+
+              if (!audioUrl) {
+                console.warn('[Dashboard] ⚠️ No audio URL returned from /api/calls/end');
+              }
+
+              // Update call log entry with audio URL
+              const existingLogs = localStorage.getItem('callLogs');
+              const callLogs = existingLogs ? JSON.parse(existingLogs) : [];
+              
+              // Find the call log entry we just added and update it with audioUrl
+              // Try matching by conversationId first, then by id
+              const callLogIndex = callLogs.findIndex((log: any) => 
+                log.id === newCall.id || 
+                log.conversationId === currentActiveCall.conversationId
+              );
+              
+              if (callLogIndex !== -1) {
+                const updatedLog = {
+                  ...callLogs[callLogIndex],
+                  audioUrl: audioUrl || undefined,
+                };
+                callLogs[callLogIndex] = updatedLog;
+                localStorage.setItem('callLogs', JSON.stringify(callLogs));
+                console.log('[Dashboard] ✅ Updated call log with audio URL:', updatedLog.id, updatedLog.audioUrl);
+                window.dispatchEvent(new CustomEvent('callLogsUpdated'));
+              } else {
+                console.warn('[Dashboard] ⚠️ Could not find call log entry to update:', {
+                  newCallId: newCall.id,
+                  conversationId: currentActiveCall.conversationId,
+                  availableIds: callLogs.map((log: any) => ({ id: log.id, conversationId: log.conversationId })),
+                });
+              }
+            })
+            .catch((error) => {
+              console.error('[Dashboard] Error ending call recording:', error);
+            });
+        }
+
+        // Save call with transcript to localStorage for call logs page (audioUrl will be added later)
+        if (typeof window !== 'undefined') {
+          const callLogEntry = {
+            ...newCall,
+            transcript: currentActiveCall.transcript,
+            keywords: currentActiveCall.keywords,
+            // audioUrl will be added when /api/calls/end completes
+          };
+
+          const existingLogs = localStorage.getItem('callLogs');
+          const callLogs = existingLogs ? JSON.parse(existingLogs) : [];
+          callLogs.unshift(callLogEntry); // Add to beginning
+
+          // Keep only last 100 calls to avoid storage issues
+          const trimmedLogs = callLogs.slice(0, 100);
+          localStorage.setItem('callLogs', JSON.stringify(trimmedLogs));
+          
+          // Dispatch custom event to notify other components
+          window.dispatchEvent(new CustomEvent('callLogsUpdated'));
+        }
+
         // Add high-risk callers (>40% scam risk) to blocklist
         if (isScam) {
-          setBlocklist((prev) =>
-            prev.includes(currentActiveCall.number) ? prev : [currentActiveCall.number, ...prev]
-          );
+          setBlocklist((prev) => {
+            const updated = prev.includes(currentActiveCall.number) ? prev : [currentActiveCall.number, ...prev];
+            // Save to localStorage
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('blocklist', JSON.stringify(updated));
+              // Dispatch custom event to notify other components
+              window.dispatchEvent(new CustomEvent('blocklistUpdated'));
+            }
+            return updated;
+          });
           if (reason === 'auto-terminated') {
             console.log(`[Dashboard] 🚫 Auto-terminated call and added ${currentActiveCall.number} to blocklist (scam risk: ${currentActiveCall.risk}%, duration: ${duration}s)`);
           } else {
@@ -1395,9 +1489,10 @@ export default function DashboardPage() {
         autoTerminationCheckRef.current = null;
       }
 
-      return null; // Clear active call
+      // Clear active call
+      return null;
     });
-  }, [setCalls, setBlocklist, setActiveCall, setIsFullPageMonitoring, setVisibleTranscript, setRealtimeScamScore, setRealtimeKeywords]);
+  }, [setCalls, setBlocklist, setIsFullPageMonitoring, setVisibleTranscript, setRealtimeScamScore, setRealtimeKeywords]);
 
   // Auto-terminate call if duration > 2 minutes AND scam risk > 50%
   useEffect(() => {
@@ -1423,7 +1518,7 @@ export default function DashboardPage() {
         console.log(`[Dashboard] 🚨 AUTO-TERMINATING CALL: Duration ${duration}s > ${MAX_DURATION_SECONDS}s AND risk ${currentRisk}% > ${RISK_THRESHOLD}%`);
         console.log(`[Dashboard] 📞 Caller: ${activeCall.number}`);
         console.log(`[Dashboard] 🚫 Marking as SCAM and adding to blocklist`);
-        
+
         // Update active call risk to ensure it's marked as scam
         setActiveCall((prev) => {
           if (!prev) return prev;
@@ -1455,8 +1550,7 @@ export default function DashboardPage() {
 
   // Helper to generate a random US-style phone number
   const generateRandomPhoneNumber = () =>
-    `+1 (${Math.floor(Math.random() * 900) + 100}) ${
-      Math.floor(Math.random() * 900) + 100
+    `+1 (${Math.floor(Math.random() * 900) + 100}) ${Math.floor(Math.random() * 900) + 100
     }-${Math.floor(Math.random() * 9000) + 1000}`;
 
   // Helper to start a simulated call (scam or safe) in a single place
@@ -1526,6 +1620,22 @@ export default function DashboardPage() {
         status: 'unknown',
       };
       setCalls((prev) => [newCall, ...prev]);
+
+      // Save call to localStorage for call logs page
+      if (typeof window !== 'undefined') {
+        const callLogEntry = {
+          ...newCall,
+          transcript: [],
+          keywords: [],
+        };
+
+        const existingLogs = localStorage.getItem('callLogs');
+        const callLogs = existingLogs ? JSON.parse(existingLogs) : [];
+        callLogs.unshift(callLogEntry);
+
+        const trimmedLogs = callLogs.slice(0, 100);
+        localStorage.setItem('callLogs', JSON.stringify(trimmedLogs));
+      }
     }
     // Stop ringtone when call is declined
     stopRingtone();
@@ -1622,7 +1732,7 @@ export default function DashboardPage() {
           if (scamScore > threshold || keywords.length > 0) {
             console.log(`[Dashboard] 🚨 SCAM DETECTED: Score ${scamScore}% (threshold: >${threshold}%, sensitivity: ${sensitivityLevel}), Keywords: ${keywords.join(', ')}`);
             console.log(`[Dashboard] ❌ Call will be marked as SCAM and added to blocklist`);
-            
+
             // Add to blocklist immediately if scam detected during conversation
             if (activeCall && scamScore > threshold) {
               setBlocklist((prev) =>
@@ -1708,7 +1818,7 @@ export default function DashboardPage() {
     }
   };
 
-  const handleDivertToAI = () => {
+  const handleDivertToAI = async () => {
     // Reset dialogue count when starting a new conversation
     dialogueCountRef.current = 0;
     // Reset diversion trigger flag
@@ -1726,6 +1836,29 @@ export default function DashboardPage() {
       const phoneNumber = incomingCall.number;
       const startTime = new Date();
 
+      // Start call recording session
+      let conversationId: string | null = null;
+      if (typeof window !== 'undefined') {
+        try {
+          const response = await fetch('/api/calls/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              phoneNumber,
+              userId: userSession?.userId || 'anonymous',
+            }),
+          });
+          if (response.ok) {
+            const data = await response.json();
+            conversationId = data.conversationId;
+            console.log('[Dashboard] 🎙️ Started call recording:', conversationId);
+          }
+        } catch (error) {
+          console.error('[Dashboard] Error starting call recording:', error);
+          // Continue even if recording fails
+        }
+      }
+
       // Initialize active call for real-time monitoring (NO simulated data)
       setActiveCall({
         number: phoneNumber,
@@ -1733,6 +1866,7 @@ export default function DashboardPage() {
         keywords: [],
         transcript: [], // Start with empty transcript for real-time conversation
         startTime,
+        conversationId: conversationId ?? undefined, // Store for ending recording
       });
       setRealtimeScamScore(0);
       setRealtimeKeywords([]);
@@ -1757,12 +1891,13 @@ export default function DashboardPage() {
         aiVoiceClientRef.current = new ElevenLabsClient({
           playbackRate: 0.6,
           voice: currentVoice,
+          conversationId: conversationId ?? undefined, // Pass conversation ID for audio recording
           onUserTranscript: async (text: string) => {
             console.log('[Dashboard] Caller said:', text);
 
             // Add caller transcript entry and analyze in one update
             const callerEntry: TranscriptEntry = { speaker: 'Caller', text };
-            
+
             setActiveCall((prev) => {
               if (!prev) return prev;
               const updatedTranscript = [...prev.transcript, callerEntry];
@@ -1773,7 +1908,7 @@ export default function DashboardPage() {
                 transcript: updatedTranscript,
               };
             });
-            
+
             // CRITICAL: Also add to visibleTranscript immediately (no delay for caller messages)
             setVisibleTranscript((prev) => {
               // Check if this entry is already in visibleTranscript to avoid duplicates
@@ -1792,7 +1927,7 @@ export default function DashboardPage() {
             // Add agent response to transcript
             const agentEntry: TranscriptEntry = { speaker: 'AI Agent', text };
             addTranscriptEntry(agentEntry);
-            
+
             // CRITICAL: Also add to visibleTranscript immediately (no delay for agent messages)
             setVisibleTranscript((prev) => {
               // Check if this entry is already in visibleTranscript to avoid duplicates
@@ -1810,18 +1945,19 @@ export default function DashboardPage() {
             // Add a greeting message that encourages the caller to explain their purpose
             addTranscriptEntry({
               speaker: 'AI Agent',
-              text: 'Hello?'});
+              text: 'Hello?'
+            });
           },
           onConversationEnd: () => {
             console.log('[Dashboard] Conversation ended');
-            
+
             // After conversation ends, check if we should redial
             // Only redial if we have enough dialogue (10+) and it's safe (no scam keywords)
             const finalCallerMessages = activeCall?.transcript.filter((e) => e.speaker === 'Caller') || [];
             const finalDialogueCount = finalCallerMessages.length;
             const finalScamScore = activeCall?.risk || 0;
             const finalKeywords = activeCall?.keywords || [];
-            
+
             console.log('[Dashboard] 📊 Final conversation analysis:', {
               dialogueCount: finalDialogueCount,
               scamScore: finalScamScore,
@@ -1830,7 +1966,7 @@ export default function DashboardPage() {
               hasScamKeywords: finalKeywords.length > 0,
               isSafe: finalScamScore < 40 && finalKeywords.length === 0,
             });
-            
+
             // Only redial if we have enough dialogue AND it's safe (no scam keywords)
             if (
               finalDialogueCount >= MIN_DIALOGUES_FOR_ANALYSIS &&
@@ -1839,50 +1975,59 @@ export default function DashboardPage() {
               !hasTriggeredSafeReRingRef.current
             ) {
               console.log('[Dashboard] ✅ Safe call confirmed - redialing to user...');
-              
+
               // Extract call purpose from caller's messages
               const callerText = finalCallerMessages.map((e) => e.text).join(' ');
-              const purpose = callerText.length > 150 
+              const purpose = callerText.length > 150
                 ? callerText.substring(0, 150) + '...'
                 : callerText || 'General inquiry';
-              
+
               // Redial to user
               setIncomingCall({
                 number: activeCall?.number || '',
                 purpose,
                 isSafe: true,
               });
-              
+
               setIsFullPageMonitoring(false);
               startRingtone();
               hasTriggeredSafeReRingRef.current = true;
-            } else if (finalDialogueCount < MIN_DIALOGUES_FOR_ANALYSIS) {
-              console.log('[Dashboard] ⚠️ Conversation ended too early - not enough dialogue for decision');
-              console.log(`[Dashboard] Had ${finalDialogueCount} dialogues, needed ${MIN_DIALOGUES_FOR_ANALYSIS}`);
-            } else if (finalScamScore >= 40 || finalKeywords.length > 0) {
-              console.log('[Dashboard] 🚨 Scam detected - call will NOT be redialed');
-              console.log(`[Dashboard] Scam score: ${finalScamScore}, Keywords: ${finalKeywords.join(', ')}`);
+            } else {
+              // If not redialing, end the call to save it to call logs
+              if (finalDialogueCount < MIN_DIALOGUES_FOR_ANALYSIS) {
+                console.log('[Dashboard] ⚠️ Conversation ended too early - not enough dialogue for decision');
+                console.log(`[Dashboard] Had ${finalDialogueCount} dialogues, needed ${MIN_DIALOGUES_FOR_ANALYSIS}`);
+              } else if (finalScamScore >= 40 || finalKeywords.length > 0) {
+                console.log('[Dashboard] 🚨 Scam detected - call will NOT be redialed');
+                console.log(`[Dashboard] Scam score: ${finalScamScore}, Keywords: ${finalKeywords.join(', ')}`);
+              }
+              
+              // End the call to save it to call logs
+              // Use setTimeout to ensure state updates are complete
+              setTimeout(() => {
+                endCall('manual');
+              }, 500);
             }
           },
           onError: (error: Error) => {
             console.error('[Dashboard] ElevenLabs error:', error);
-            
+
             // Parse error message to provide better user guidance
             let errorMessage = error.message;
-            
+
             // Microphone-related errors
             if (errorMessage.includes('microphone') || errorMessage.includes('Microphone')) {
               // Keep the detailed microphone error message as-is (already user-friendly)
               errorMessage = `AI Protection Error: ${errorMessage}`;
-            } 
+            }
             // API permission errors
             else if (errorMessage.includes('convai_write') || errorMessage.includes('missing_permissions')) {
               errorMessage = 'AI Protection is not available: Your ElevenLabs API key needs the "convai_write" permission. Please update your API key settings.';
-            } 
+            }
             // Authentication errors
             else if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
               errorMessage = 'AI Protection is not available: Invalid or missing ElevenLabs API key. Please check your environment configuration.';
-            } 
+            }
             // Network errors
             else if (errorMessage.includes('Failed to fetch signed URL')) {
               errorMessage = 'AI Protection is not available: Could not connect to ElevenLabs service. Please check your internet connection and try again.';
@@ -1891,7 +2036,7 @@ export default function DashboardPage() {
             else {
               errorMessage = `AI Protection Error: ${errorMessage}`;
             }
-            
+
             // Show user-friendly error message
             addTranscriptEntry({
               speaker: 'System',
@@ -1903,10 +2048,10 @@ export default function DashboardPage() {
         // Start the session
         void aiVoiceClientRef.current.start().catch((error) => {
           console.error('[Dashboard] Failed to start ElevenLabs session:', error);
-          
+
           // Parse error message to provide better user guidance
           let errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          
+
           // Microphone-related errors
           if (errorMessage.includes('microphone') || errorMessage.includes('Microphone') || errorMessage.includes('device not found')) {
             errorMessage = `AI Protection Error: ${errorMessage}`;
@@ -1914,7 +2059,7 @@ export default function DashboardPage() {
           // API permission errors
           else if (errorMessage.includes('convai_write') || errorMessage.includes('missing_permissions')) {
             errorMessage = 'AI Protection is not available: Your ElevenLabs API key needs the "convai_write" permission. Please update your API key settings in the ElevenLabs dashboard.';
-          } 
+          }
           // Authentication errors
           else if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
             errorMessage = 'AI Protection is not available: Invalid or missing ElevenLabs API key. Please check your .env.local file for ELEVENLABS_API_KEY.';
@@ -1923,7 +2068,7 @@ export default function DashboardPage() {
           else {
             errorMessage = `AI Protection Error: ${errorMessage}`;
           }
-          
+
           addTranscriptEntry({
             speaker: 'System',
             text: errorMessage,
@@ -1946,6 +2091,22 @@ export default function DashboardPage() {
         status: 'unknown',
       };
       setCalls((prev) => [newCall, ...prev]);
+
+      // Save call to localStorage for call logs page
+      if (typeof window !== 'undefined') {
+        const callLogEntry = {
+          ...newCall,
+          transcript: [],
+          keywords: [],
+        };
+
+        const existingLogs = localStorage.getItem('callLogs');
+        const callLogs = existingLogs ? JSON.parse(existingLogs) : [];
+        callLogs.unshift(callLogEntry);
+
+        const trimmedLogs = callLogs.slice(0, 100);
+        localStorage.setItem('callLogs', JSON.stringify(trimmedLogs));
+      }
     }
     // Stop ringtone when call is accepted
     stopRingtone();
