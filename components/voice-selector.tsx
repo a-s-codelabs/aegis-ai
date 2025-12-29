@@ -33,6 +33,9 @@ export function VoiceSelector({ onVoiceChange }: VoiceSelectorProps) {
       console.error('Failed to sync voice preference:', error);
     }
 
+    const event = new CustomEvent('voicePreferenceChanged', { detail: { voice: newVoice } });
+    window.dispatchEvent(event);
+    
     onVoiceChange?.(newVoice);
   };
 

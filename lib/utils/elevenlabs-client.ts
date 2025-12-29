@@ -6,6 +6,12 @@
  * - Real-time transcription of caller speech
  * - Audio playback via Web Audio API
  * - Event callbacks for transcript updates and scam analysis triggers
+ * 
+ * MULTI-AGENT VOICE SYSTEM:
+ * - Voice preference is mapped to agent_id BEFORE call starts
+ * - Voice cannot be changed during an active call (ElevenLabs limitation)
+ * - Each voice uses a separate agent: default (Eric), female (Laura), male (Roger)
+ * - Voice is sent when requesting signed URL, NOT in message payloads
  */
 
 export interface ElevenLabsClientOptions {
@@ -23,6 +29,9 @@ export interface ElevenLabsClientOptions {
   playbackRate?: number;
   /**
    * Voice preference: 'default' (Eric), 'female' (Laura), or 'male' (Roger)
+   * 
+   * NOTE: This is used to select the agent_id BEFORE starting the call.
+   * Voice cannot be changed during an active call session.
    */
   voice?: 'default' | 'female' | 'male';
   /**
@@ -73,17 +82,8 @@ export class ElevenLabsClient {
 
   setVoice(voice: 'default' | 'female' | 'male') {
     this.voicePreference = voice;
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      const message: any = { playback_speed: 0.6 };
-      if (voice !== 'default') {
-        message.voice = voice;
-      }
-      try {
-        this.ws.send(JSON.stringify(message));
-      } catch (error) {
-        console.error('[ElevenLabsClient] Error sending voice preference:', error);
-      }
-    }
+    // NOTE: Voice changes require a new agent session (new signed URL with different agent_id)
+    // This method updates the preference for the next call, but current call will continue with original agent
   }
 
   /**
@@ -100,7 +100,11 @@ export class ElevenLabsClient {
     }
 
     try {
-      const res = await fetch('/api/elevenlabs-signed-url');
+      const res = await fetch('/api/elevenlabs-signed-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voice: this.voicePreference }),
+      });
       if (!res.ok) {
         let errorMessage = `Failed to fetch signed URL: ${res.status} ${res.statusText}`;
         try {
@@ -307,14 +311,13 @@ export class ElevenLabsClient {
         }
 
         if (this.ws) {
-          const voiceMessage: any = { playback_speed: 0.6 };
-          if (this.voicePreference !== 'default') {
-            voiceMessage.voice = this.voicePreference;
-          }
+          const payload: any = {
+            playback_speed: 0.6,
+          };
           try {
-            this.ws.send(JSON.stringify(voiceMessage));
+            this.ws.send(JSON.stringify(payload));
           } catch (error) {
-            console.error('[ElevenLabsClient] Error sending voice preference:', error);
+            console.error('[ElevenLabsClient] Error sending initial config:', error);
           }
         }
 
@@ -581,12 +584,15 @@ export class ElevenLabsClient {
 
             // Send audio chunk to ElevenLabs
             // CRITICAL: This is how caller audio reaches the AI
-            // ElevenLabs ConvAI expects: { "user_audio_chunk": "<base64_encoded_pcm16>" }
+            // ElevenLabs ConvAI expects: { "user_audio_chunk": "<base64_encoded_pcm16>", "playback_speed": 0.6 }
+            // NOTE: Voice is locked at agent session start, so we don't send voice in messages
             try {
-              // Ensure we're sending in the correct format
-              const message = JSON.stringify({
+              const payload: any = {
                 user_audio_chunk: base64Audio,
-              });
+                playback_speed: 0.6,
+              };
+              
+              const message = JSON.stringify(payload);
               
               // Verify message size (should be reasonable - typically 5-15KB per chunk)
               const messageSize = new Blob([message]).size;

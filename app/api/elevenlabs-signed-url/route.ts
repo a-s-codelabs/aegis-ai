@@ -1,38 +1,82 @@
+/**
+ * ElevenLabs Signed URL API Route
+ * 
+ * Maps voice preference to agent_id BEFORE starting the call.
+ * 
+ * Voice → Agent Mapping:
+ * - 'default' → ELEVENLABS_AGENT_ID_DEFAULT (or ELEVENLABS_AGENT_ID for backward compatibility)
+ * - 'female' → ELEVENLABS_AGENT_ID_FEMALE
+ * - 'male' → ELEVENLABS_AGENT_ID_MALE
+ * 
+ * CRITICAL: ElevenLabs Agents lock voice at session start.
+ * Voice cannot be changed during an active call.
+ * To switch voices, user must start a new call with the selected agent.
+ */
+
 export const maxDuration = 60
 
-export async function GET() {
+export async function POST(req: Request) {
   try {
-    const agentId = process.env.ELEVENLABS_AGENT_ID
     const apiKey = process.env.ELEVENLABS_API_KEY
 
-    if (!agentId || !apiKey) {
-      console.error('[ElevenLabs] Missing environment variables:', {
-        hasAgentId: !!agentId,
-        hasApiKey: !!apiKey,
-      });
+    if (!apiKey) {
+      console.error('[ElevenLabs] Missing API key');
       return Response.json(
         {
           error:
-            'ElevenLabs configuration missing. Please add ELEVENLABS_AGENT_ID and ELEVENLABS_API_KEY to environment variables.',
+            'ElevenLabs configuration missing. Please add ELEVENLABS_API_KEY to environment variables.',
           details: 'Check your .env.local file or environment configuration',
         },
         { status: 500 }
       );
     }
 
-    console.log('[ElevenLabs] Requesting signed URL for agent:', agentId);
+    const body = await req.json().catch(() => ({}));
+    const voice = body.voice;
+
+    // Validate voice preference
+    const validVoices = ['default', 'female', 'male'];
+    const validatedVoice = validVoices.includes(voice) ? voice : 'default';
+
+    // Map voice preference to agent_id
+    // Environment variables: ELEVENLABS_AGENT_ID_DEFAULT, ELEVENLABS_AGENT_ID_FEMALE, ELEVENLABS_AGENT_ID_MALE
+    // Fallback to ELEVENLABS_AGENT_ID for backward compatibility
+    let agentId: string | undefined;
+    switch (validatedVoice) {
+      case 'default':
+        agentId = process.env.ELEVENLABS_AGENT_ID_DEFAULT || process.env.ELEVENLABS_AGENT_ID;
+        break;
+      case 'female':
+        agentId = process.env.ELEVENLABS_AGENT_ID_FEMALE;
+        break;
+      case 'male':
+        agentId = process.env.ELEVENLABS_AGENT_ID_MALE;
+        break;
+    }
+
+    if (!agentId) {
+      console.error('[ElevenLabs] Missing agent ID for voice:', validatedVoice);
+      return Response.json(
+        {
+          error: `ElevenLabs agent ID not configured for voice: ${validatedVoice}`,
+          details: `Please add ELEVENLABS_AGENT_ID_${validatedVoice.toUpperCase()} to environment variables, or use ELEVENLABS_AGENT_ID for default voice.`,
+        },
+        { status: 500 }
+      );
+    }
+
+    console.log('[ElevenLabs] Requesting signed URL for agent:', agentId, `(voice: ${validatedVoice})`);
+
+    const url = `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${agentId}`;
 
     // Get signed URL from ElevenLabs
-    const response = await fetch(
-      `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${agentId}`,
-      {
-        method: 'GET',
-        headers: {
-          'xi-api-key': apiKey,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+      },
+    });
 
     if (!response.ok) {
       const errorText = await response.text();

@@ -64,17 +64,24 @@ export default function ManagePage() {
   };
 
   const handleVoiceAgentChange = async (agent: VoicePreference) => {
+    console.log('[Manage] Voice agent changed to:', agent);
     setSelectedVoiceAgent(agent);
     localStorage.setItem('voicePreference', agent);
+    
     try {
       await fetch('/api/user/voice-preference', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ voice: agent }),
       });
+      console.log('[Manage] Voice preference saved to backend');
     } catch (error) {
       console.error('Failed to sync voice preference:', error);
     }
+    
+    const event = new CustomEvent('voicePreferenceChanged', { detail: { voice: agent } });
+    window.dispatchEvent(event);
+    console.log('[Manage] Voice preference change event dispatched');
   };
 
   // Manage Content Component (to be rendered inside iPhone)
