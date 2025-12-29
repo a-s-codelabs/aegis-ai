@@ -1,0 +1,16 @@
+---
+alwaysApply: true
+---
+simple, understandable code is better than clever code
+write code that are direct and easy to understand
+apply input validation and error handling
+
+use best practices
+when writing fn - create input and output types
+
+comment only when necessary example why this code is needed
+don't create docs unless specified
+
+avoid unnecessary abstraction
+avoid creating code and files unnecessarily, try to use created code
+do only necessary changes
