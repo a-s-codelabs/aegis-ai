@@ -8,6 +8,7 @@ interface UserSession {
   phoneNumber: string;
   token: string;
   name?: string;
+  profilePicture?: string | null;
 }
 
 interface TopNavbarProps {
@@ -20,6 +21,7 @@ export function TopNavbar({ title = 'Anti-Scam', icon = 'shield', isFullWidth = 
   const router = useRouter();
   const [userSession, setUserSession] = useState<UserSession | null>(null);
   const [userInitials, setUserInitials] = useState('U');
+  const [divertCallPopupEnabled, setDivertCallPopupEnabled] = useState(true);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -46,6 +48,91 @@ export function TopNavbar({ title = 'Anti-Scam', icon = 'shield', isFullWidth = 
           console.error('[TopNavbar] Error parsing session:', error);
         }
       }
+
+      // Load divert call popup preference from localStorage
+      const savedDivertCallPopup = localStorage.getItem('divertCallPopupEnabled');
+      if (savedDivertCallPopup !== null) {
+        setDivertCallPopupEnabled(savedDivertCallPopup === 'true');
+      } else {
+        // Default to true if not set
+        setDivertCallPopupEnabled(true);
+      }
+    }
+  }, []);
+
+  // Listen for profile updates and divert call popup changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handleProfileUpdate = () => {
+        const sessionData = localStorage.getItem('userSession');
+        if (sessionData) {
+          try {
+            const session: UserSession = JSON.parse(sessionData);
+            setUserSession(session);
+
+            // Update initials if name changed
+            if (session.name) {
+              const names = session.name.trim().split(' ');
+              if (names.length >= 2) {
+                setUserInitials(
+                  (names[0][0] + names[names.length - 1][0]).toUpperCase()
+                );
+              } else {
+                setUserInitials(session.name[0].toUpperCase());
+              }
+            } else if (session.phoneNumber) {
+              setUserInitials(session.phoneNumber.slice(-1));
+            }
+          } catch (error) {
+            console.error('[TopNavbar] Error parsing session:', error);
+          }
+        }
+      };
+
+      const handleDivertCallPopupChange = () => {
+        const savedDivertCallPopup = localStorage.getItem('divertCallPopupEnabled');
+        if (savedDivertCallPopup !== null) {
+          setDivertCallPopupEnabled(savedDivertCallPopup === 'true');
+        } else {
+          setDivertCallPopupEnabled(true);
+        }
+      };
+
+      // Listen for custom events (from same tab)
+      window.addEventListener('profileUpdated', handleProfileUpdate);
+      window.addEventListener('divertCallPopupChanged', handleDivertCallPopupChange);
+      
+      // Also listen for storage events (from other tabs/windows)
+      const handleStorageEvent = (e: StorageEvent) => {
+        if (e.key === 'userSession') {
+          handleProfileUpdate();
+        } else if (e.key === 'divertCallPopupEnabled') {
+          handleDivertCallPopupChange();
+        }
+      };
+      window.addEventListener('storage', handleStorageEvent);
+
+      // Refresh when page becomes visible (user navigates back)
+      const handleVisibilityChange = () => {
+        if (!document.hidden) {
+          handleProfileUpdate();
+        }
+      };
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+
+      // Also refresh when window gains focus (user navigates back)
+      const handleFocus = () => {
+        handleProfileUpdate();
+      };
+      window.addEventListener('focus', handleFocus);
+
+      return () => {
+        window.removeEventListener('profileUpdated', handleProfileUpdate);
+        window.removeEventListener('divertCallPopupChanged', handleDivertCallPopupChange);
+        window.removeEventListener('storage', handleStorageEvent);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        window.removeEventListener('focus', handleFocus);
+      };
     }
   }, []);
 
@@ -86,17 +173,29 @@ export function TopNavbar({ title = 'Anti-Scam', icon = 'shield', isFullWidth = 
           className="relative cursor-pointer hover:opacity-80 transition-opacity"
         >
           {userSession ? (
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-100 to-amber-200 border-2 border-[#26d9bb]/30 flex items-center justify-center">
-              <span className="text-sm font-bold text-amber-900">
-                {userInitials}
-              </span>
-            </div>
+            userSession.profilePicture ? (
+              <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-[#26d9bb]/30">
+                <img
+                  src={userSession.profilePicture}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-100 to-amber-200 border-2 border-[#26d9bb]/30 flex items-center justify-center">
+                <span className="text-sm font-bold text-amber-900">
+                  {userInitials}
+                </span>
+              </div>
+            )
           ) : (
             <div className="w-9 h-9 rounded-full bg-gray-700 border-2 border-gray-600 flex items-center justify-center">
               <span className="text-sm font-bold text-gray-400">U</span>
             </div>
           )}
-          <span className="absolute top-0 right-0 w-3 h-3 bg-[#26d9bb] rounded-full border-2 border-[#0B1121]"></span>
+          {divertCallPopupEnabled && (
+            <span className="absolute top-0 right-0 w-3 h-3 bg-[#26d9bb] rounded-full border-2 border-[#0B1121]"></span>
+          )}
         </button>
       </div>
     </header>

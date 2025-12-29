@@ -10,8 +10,19 @@ type SensitivityLevel = 'LOW' | 'STANDARD' | 'HIGH';
 type VoiceStyle = 'Direct' | 'Neutral' | 'Empathetic';
 type VoicePreference = 'default' | 'female' | 'male';
 
+interface UserSession {
+  userId: string;
+  phoneNumber: string;
+  token: string;
+  name?: string;
+  profilePicture?: string | null;
+}
+
 export default function ManagePage() {
   const router = useRouter();
+  const [userSession, setUserSession] = useState<UserSession | null>(null);
+  const [userInitials, setUserInitials] = useState('U');
+  const [divertCallPopupEnabled, setDivertCallPopupEnabled] = useState(true);
   const [isAiGuardianEnabled, setIsAiGuardianEnabled] = useState(true);
   const [sensitivityLevel, setSensitivityLevel] =
     useState<SensitivityLevel>('HIGH');
@@ -28,10 +39,102 @@ export default function ManagePage() {
         router.push('/auth/login');
         return;
       }
+
+      try {
+        const session: UserSession = JSON.parse(sessionData);
+        setUserSession(session);
+
+        // Get user initials from name or phone number
+        if (session.name) {
+          const names = session.name.trim().split(' ');
+          if (names.length >= 2) {
+            setUserInitials(
+              (names[0][0] + names[names.length - 1][0]).toUpperCase()
+            );
+          } else {
+            setUserInitials(session.name[0].toUpperCase());
+          }
+        } else if (session.phoneNumber) {
+          setUserInitials(session.phoneNumber.slice(-1));
+        }
+      } catch (error) {
+        console.error('[Manage] Error parsing session:', error);
+        router.push('/auth/login');
+        return;
+      }
+
       const savedVoice = getVoicePreference();
       setSelectedVoiceAgent(savedVoice);
+
+      // Load divert call popup preference from localStorage
+      const savedDivertCallPopup = localStorage.getItem('divertCallPopupEnabled');
+      if (savedDivertCallPopup !== null) {
+        setDivertCallPopupEnabled(savedDivertCallPopup === 'true');
+      } else {
+        // Default to true if not set
+        setDivertCallPopupEnabled(true);
+      }
     }
   }, [router]);
+
+  // Listen for profile updates and divert call popup changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handleStorageChange = () => {
+        const sessionData = localStorage.getItem('userSession');
+        if (sessionData) {
+          try {
+            const session: UserSession = JSON.parse(sessionData);
+            setUserSession(session);
+
+            // Update initials if name changed
+            if (session.name) {
+              const names = session.name.trim().split(' ');
+              if (names.length >= 2) {
+                setUserInitials(
+                  (names[0][0] + names[names.length - 1][0]).toUpperCase()
+                );
+              } else {
+                setUserInitials(session.name[0].toUpperCase());
+              }
+            } else if (session.phoneNumber) {
+              setUserInitials(session.phoneNumber.slice(-1));
+            }
+          } catch (error) {
+            console.error('[Manage] Error parsing session:', error);
+          }
+        }
+      };
+
+      const handleDivertCallPopupChange = () => {
+        const savedDivertCallPopup = localStorage.getItem('divertCallPopupEnabled');
+        if (savedDivertCallPopup !== null) {
+          setDivertCallPopupEnabled(savedDivertCallPopup === 'true');
+        } else {
+          setDivertCallPopupEnabled(true);
+        }
+      };
+
+      // Listen for storage events (from other tabs/windows)
+      window.addEventListener('storage', (e) => {
+        if (e.key === 'userSession') {
+          handleStorageChange();
+        } else if (e.key === 'divertCallPopupEnabled') {
+          handleDivertCallPopupChange();
+        }
+      });
+
+      // Listen for custom events (from same tab)
+      window.addEventListener('profileUpdated', handleStorageChange);
+      window.addEventListener('divertCallPopupChanged', handleDivertCallPopupChange);
+
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('profileUpdated', handleStorageChange);
+        window.removeEventListener('divertCallPopupChanged', handleDivertCallPopupChange);
+      };
+    }
+  }, []);
 
   // Update sensitivity level based on slider value
   useEffect(() => {
@@ -102,15 +205,29 @@ export default function ManagePage() {
           <h2 className="text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">
             Smart Call Diversion
           </h2>
-          <div className="flex size-10 items-center justify-center">
-            <div
-              className="h-9 w-9 rounded-full bg-cover bg-center border-2 border-[#26d9bb]/50 shadow-[0_0_10px_rgba(38,217,187,0.2)]"
-              style={{
-                backgroundImage:
-                  'url("https://lh3.googleusercontent.com/aida-public/AB6AXuCl96waA_f8iWLSu-peVKVNbtjqeREe240BiESXm3AgPfDS8Zy1ZvEgUQrnuXMgxtVRzzV4AylkAXSwncuWZWSmbvswJmtAHlGRYl6Rv2eDJD4e-pyWt12ofpFd0qm2O9K6M1gr18o-CLqe7D-HhCxhd0p7TujTs4Yvwk71F1jjLGN_h9G9JlwIyaCb-E5_sG91XeNxWZQ4bkZuEdptq6AEKLvzrevN8bJO4zBhjROteNjj2woMZOegqb1V0LOi2656MNME9g3HA01w")',
-              }}
-            ></div>
-          </div>
+          <button
+            onClick={() => router.push('/settings')}
+            className="relative flex size-10 items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
+          >
+            {userSession?.profilePicture ? (
+              <div className="h-9 w-9 rounded-full overflow-hidden border-2 border-[#26d9bb]/50 shadow-[0_0_10px_rgba(38,217,187,0.2)]">
+                <img
+                  src={userSession.profilePicture}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-amber-100 to-amber-200 border-2 border-[#26d9bb]/50 shadow-[0_0_10px_rgba(38,217,187,0.2)] flex items-center justify-center">
+                <span className="text-sm font-bold text-amber-900">
+                  {userInitials}
+                </span>
+              </div>
+            )}
+            {divertCallPopupEnabled && (
+              <span className="absolute top-0 right-0 w-3 h-3 bg-[#26d9bb] rounded-full border-2 border-[#0B1121]"></span>
+            )}
+          </button>
         </div>
 
         {/* AI Call Guardian Section */}
