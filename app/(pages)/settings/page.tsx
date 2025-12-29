@@ -17,6 +17,7 @@ export default function SettingsPage() {
   const [userSession, setUserSession] = useState<UserSession | null>(null);
   const [contactAccessEnabled, setContactAccessEnabled] = useState(true);
   const [divertCallPopupEnabled, setDivertCallPopupEnabled] = useState(true);
+  const [showSignOutDialog, setShowSignOutDialog] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -36,9 +37,18 @@ export default function SettingsPage() {
     }
   }, [router]);
 
-  const handleLogout = () => {
+  const handleSignOutClick = () => {
+    setShowSignOutDialog(true);
+  };
+
+  const handleConfirmSignOut = () => {
     if (typeof window !== 'undefined') {
+      // Clear all auth-related data
       localStorage.removeItem('userSession');
+      // Clear any other auth tokens if they exist
+      // Add additional cleanup as needed
+      
+      // Redirect to login
       router.push('/auth/login');
     }
   };
@@ -75,11 +85,11 @@ export default function SettingsPage() {
   function SettingsContent() {
     return (
       <AppLayout fullWidth>
-      <div className="flex flex-col items-center space-y-8 pb-8">
+      <div className="flex flex-col min-h-full relative">
         {/* User Profile Section */}
-        <section className="w-full flex flex-col items-center space-y-4 pt-4">
+        <section className="w-full flex flex-col items-center">
           {/* Avatar with Edit Icon */}
-          <div className="relative">
+          <div className="relative mb-4">
             <div className="w-24 h-24 rounded-full bg-[#1e293b] flex items-center justify-center border-2 border-gray-700/50">
               <span className="text-3xl font-semibold text-white">
                 {getUserInitials()}
@@ -100,7 +110,7 @@ export default function SettingsPage() {
           </div>
 
           {/* User Name */}
-          <h2 className="text-xl font-semibold text-white">
+          <h2 className="text-xl font-semibold text-white mb-1">
             {getDisplayName()}
           </h2>
 
@@ -111,7 +121,7 @@ export default function SettingsPage() {
         </section>
 
         {/* General Preferences Section */}
-        <section className="w-full space-y-4">
+        <section className="w-full space-y-4 flex-1 mt-10">
           <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1">
             General Preferences
           </h3>
@@ -205,30 +215,81 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* Sign Out Button */}
-        <section className="w-full pt-4">
-          <button
-            onClick={handleLogout}
-            className="w-full p-4 rounded-xl bg-transparent border border-red-500/30 text-red-400 font-medium hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2"
-            aria-label="Sign out"
-          >
-            <span>Sign Out</span>
-            <span
-              className="material-symbols-outlined text-red-400 text-lg"
-              style={{ fontVariationSettings: '"FILL" 0, "wght" 400' }}
-            >
-              logout
-            </span>
-          </button>
-        </section>
+        {/* Bottom Section - Pushed to bottom */}
+        <div className="mt-auto w-full">
+          {/* Visual Separator */}
+          <div className="w-full border-t border-gray-800/50 my-4" />
 
-        {/* App Information */}
-        <section className="w-full pt-2">
-          <p className="text-xs text-gray-500 text-center">
-            • Anti-Scam Protection Active
-          </p>
-        </section>
+          {/* Sign Out Button - At Bottom */}
+          <section className="w-full pb-4 flex justify-center">
+            <button
+              onClick={handleSignOutClick}
+              className="px-6 py-2.5 rounded-lg bg-transparent text-red-400 font-medium hover:bg-red-500/10 active:bg-red-500/20 transition-colors flex items-center justify-center gap-2 text-sm min-h-[44px]"
+              aria-label="Sign out"
+            >
+              <span>Sign Out</span>
+              <span
+                className="material-symbols-outlined text-red-400 text-base"
+                style={{ fontVariationSettings: '"FILL" 0, "wght" 400' }}
+              >
+                logout
+              </span>
+            </button>
+          </section>
+
+          {/* App Information */}
+          <section className="w-full">
+            <p className="text-xs text-gray-500 text-center">
+              • Anti-Scam Protection Active
+            </p>
+          </section>
+        </div>
       </div>
+
+      {/* Sign Out Confirmation Modal - Custom inline modal within iPhone frame */}
+      {showSignOutDialog && (
+        <>
+          {/* Overlay */}
+          <div 
+            className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm animate-in fade-in-0"
+            onClick={() => setShowSignOutDialog(false)}
+          />
+          
+          {/* Modal Content */}
+          <div className="absolute inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+            <div 
+              className="bg-[#151e32] border border-gray-800/50 rounded-lg p-6 w-full max-w-[calc(100%-2rem)] shadow-2xl pointer-events-auto animate-in zoom-in-95 fade-in-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  Sign out?
+                </h3>
+                <p className="text-sm text-gray-400">
+                  You'll need to sign in again to continue using Anti-Scam protection.
+                </p>
+              </div>
+
+              {/* Footer */}
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-6">
+                <button
+                  onClick={() => setShowSignOutDialog(false)}
+                  className="px-4 py-2 rounded-lg bg-[#1e293b] border border-gray-700 text-white font-medium hover:bg-[#2d3a52] transition-colors min-h-[44px]"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmSignOut}
+                  className="px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition-colors min-h-[44px]"
+                >
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </AppLayout>
     );
   }
