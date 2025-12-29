@@ -1,21 +1,5 @@
 import { NextResponse } from "next/server"
-
-// Mock user database - In production, this would be a real database
-// For demo purposes, we'll use a simple in-memory store
-const users = [
-  {
-    id: "1",
-    phoneNumber: "+15551234567",
-    password: "password123", // In production, this should be hashed
-    name: "John Doe",
-  },
-  {
-    id: "2",
-    phoneNumber: "+15559876543",
-    password: "password123",
-    name: "Jane Smith",
-  },
-]
+import { users } from "../shared/users"
 
 export async function POST(request: Request) {
   try {
@@ -61,6 +45,7 @@ export async function POST(request: Request) {
       userId: user.id,
       phoneNumber: user.phoneNumber,
       name: user.name,
+      profilePicture: user.profilePicture || null,
       token,
     })
   } catch (error) {

@@ -5,6 +5,9 @@ import { SplitLayoutWithIPhone } from '@/components/layout/split-layout-with-iph
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { MobileModal } from '@/components/ui/mobile-modal';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 interface RecentCall {
   id: string;
@@ -24,6 +27,7 @@ interface BlockedNumber {
 interface WhitelistItem {
   id: string;
   name: string;
+  number?: string;
 }
 
 interface Contact {
@@ -36,6 +40,35 @@ interface Contact {
 
 // Home Content Component (to be rendered inside iPhone)
 function HomeContent() {
+  const router = useRouter();
+  const [contactAccessEnabled, setContactAccessEnabled] = useState(true);
+
+  // Load contact access preference from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedContactAccess = localStorage.getItem('contactAccessEnabled');
+      if (savedContactAccess !== null) {
+        setContactAccessEnabled(savedContactAccess === 'true');
+      }
+
+      // Listen for changes to contact access
+      const handleContactAccessChange = () => {
+        const savedContactAccess = localStorage.getItem('contactAccessEnabled');
+        if (savedContactAccess !== null) {
+          setContactAccessEnabled(savedContactAccess === 'true');
+        }
+      };
+
+      window.addEventListener('contactAccessChanged', handleContactAccessChange);
+      window.addEventListener('storage', handleContactAccessChange);
+
+      return () => {
+        window.removeEventListener('contactAccessChanged', handleContactAccessChange);
+        window.removeEventListener('storage', handleContactAccessChange);
+      };
+    }
+  }, []);
+
   const [recentCalls] = useState<RecentCall[]>([
     {
       id: '1',
@@ -73,11 +106,74 @@ function HomeContent() {
     },
   ]);
 
-  const [whitelistItems] = useState<WhitelistItem[]>([
-    { id: '1', name: 'Bank' },
-    { id: '2', name: 'Office' },
-    { id: '3', name: 'Doctor' },
-  ]);
+  const [whitelistItems, setWhitelistItems] = useState<WhitelistItem[]>([]);
+  const [isAddWhitelistDialogOpen, setIsAddWhitelistDialogOpen] = useState(false);
+  const [isViewWhitelistDialogOpen, setIsViewWhitelistDialogOpen] = useState(false);
+  const [selectedWhitelistItem, setSelectedWhitelistItem] = useState<WhitelistItem | null>(null);
+  const [newWhitelistName, setNewWhitelistName] = useState('');
+  const [newWhitelistNumber, setNewWhitelistNumber] = useState('');
+  const [editingPhoneNumber, setEditingPhoneNumber] = useState('');
+
+  // Load whitelist items from localStorage on mount and listen for changes
+  const loadWhitelistItems = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('whitelistItems');
+        if (saved) {
+          const parsed = JSON.parse(saved) as WhitelistItem[];
+          setWhitelistItems(parsed);
+        } else {
+          // Initialize with default items if no saved data
+          const defaultItems: WhitelistItem[] = [
+            { id: '1', name: 'Bank' },
+            { id: '2', name: 'Office' },
+            { id: '3', name: 'Doctor' },
+          ];
+          setWhitelistItems(defaultItems);
+          localStorage.setItem('whitelistItems', JSON.stringify(defaultItems));
+        }
+      } catch (error) {
+        console.error('[Whitelist] Error loading whitelist items:', error);
+        // Fallback to default items
+        const defaultItems: WhitelistItem[] = [
+          { id: '1', name: 'Bank' },
+          { id: '2', name: 'Office' },
+          { id: '3', name: 'Doctor' },
+        ];
+        setWhitelistItems(defaultItems);
+      }
+    }
+  };
+
+  useEffect(() => {
+    loadWhitelistItems();
+
+    // Listen for storage changes to reload whitelist items (for cross-tab synchronization)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'whitelistItems') {
+        // Use setTimeout to avoid state update during render
+        setTimeout(() => {
+          loadWhitelistItems();
+        }, 0);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+  // Sync editing phone number when selected item changes
+  useEffect(() => {
+    if (selectedWhitelistItem) {
+      setEditingPhoneNumber(selectedWhitelistItem.number || '');
+    }
+  }, [selectedWhitelistItem]);
+
+  // Note: Saving to localStorage is now handled directly in handleAddWhitelist
+  // to avoid race conditions and ensure immediate persistence
 
   const [contacts] = useState<Contact[]>([
     {
@@ -105,6 +201,125 @@ function HomeContent() {
       default:
         return 'bg-gray-500/20 text-gray-400';
     }
+  };
+
+  const handleAddWhitelist = () => {
+    const trimmedName = newWhitelistName.trim();
+    
+    if (!trimmedName) {
+      console.error('[Whitelist] Name is required');
+      return;
+    }
+
+    const trimmedNumber = newWhitelistNumber.trim() || undefined;
+
+    console.log('[Whitelist] Adding item:', { name: trimmedName, number: trimmedNumber });
+
+    // Update state using functional update to ensure we have the latest state
+    setWhitelistItems((prevItems) => {
+      console.log('[Whitelist] Current items in state:', prevItems);
+      
+      // Check if an item with the same name already exists (case-insensitive)
+      const existingIndex = prevItems.findIndex(
+        (item) => item.name.toLowerCase() === trimmedName.toLowerCase()
+      );
+
+      let finalItems: WhitelistItem[];
+
+      if (existingIndex !== -1) {
+        // Update existing item
+        console.log('[Whitelist] Updating existing item at index:', existingIndex);
+        finalItems = prevItems.map((item, idx) => 
+          idx === existingIndex 
+            ? { ...item, name: trimmedName, number: trimmedNumber }
+            : item
+        );
+      } else {
+        // Create new item
+        console.log('[Whitelist] Creating new item');
+        const newItem: WhitelistItem = {
+          id: Date.now().toString(),
+          name: trimmedName,
+          number: trimmedNumber,
+        };
+        finalItems = [...prevItems, newItem];
+      }
+
+      console.log('[Whitelist] Final items:', finalItems);
+      
+      // Save to localStorage immediately
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('whitelistItems', JSON.stringify(finalItems));
+          console.log('[Whitelist] Saved items to localStorage:', finalItems);
+          // Note: No need to dispatch event - state is already updated above
+          // The storage event will handle cross-tab synchronization
+        } catch (error) {
+          console.error('[Whitelist] Error saving to localStorage:', error);
+        }
+      }
+      
+      return finalItems;
+    });
+
+    // Clear form and close dialog
+    setNewWhitelistName('');
+    setNewWhitelistNumber('');
+    setIsAddWhitelistDialogOpen(false);
+  };
+
+  const handleWhitelistItemClick = (item: WhitelistItem, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    console.log('[Whitelist] Clicked item:', item);
+    setSelectedWhitelistItem(item);
+    setEditingPhoneNumber(item.number || '');
+    setIsViewWhitelistDialogOpen(true);
+  };
+
+  const handleUpdateWhitelistNumber = () => {
+    if (!selectedWhitelistItem) {
+      console.error('[Whitelist] No selected item to update');
+      return;
+    }
+
+    const trimmedNumber = editingPhoneNumber.trim() || undefined;
+    console.log('[Whitelist] Updating phone number:', { 
+      itemId: selectedWhitelistItem.id, 
+      itemName: selectedWhitelistItem.name,
+      newNumber: trimmedNumber 
+    });
+
+    setWhitelistItems((prevItems) => {
+      const updatedItems = prevItems.map((item) =>
+        item.id === selectedWhitelistItem.id
+          ? { ...item, number: trimmedNumber }
+          : item
+      );
+
+      console.log('[Whitelist] Updated items:', updatedItems);
+
+      // Save to localStorage
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('whitelistItems', JSON.stringify(updatedItems));
+          console.log('[Whitelist] Saved to localStorage successfully');
+        } catch (error) {
+          console.error('[Whitelist] Error saving to localStorage:', error);
+        }
+      }
+
+      return updatedItems;
+    });
+
+    // Update selected item to reflect the change
+    setSelectedWhitelistItem({ ...selectedWhitelistItem, number: trimmedNumber });
+    
+    // Close the dialog after saving
+    setIsViewWhitelistDialogOpen(false);
+    setEditingPhoneNumber('');
   };
 
   return (
@@ -274,83 +489,323 @@ function HomeContent() {
                 <h3 className="text-[11px] font-semibold text-gray-300 uppercase tracking-wider">
                   Whitelist
                 </h3>
-                <button className="text-[10px] text-[#26d9bb] hover:text-[#20c4a8] font-medium transition-colors">
-                  Manage
-                </button>
               </div>
               <div className="bg-[#151e32] border border-gray-800 rounded-xl p-3 shadow-lg">
-                <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1">
-                  <button className="flex flex-col items-center gap-1.5 min-w-[60px] shrink-0">
-                    <div className="w-10 h-10 rounded-full border-2 border-dashed border-gray-600 flex items-center justify-center hover:border-[#26d9bb] hover:bg-[#26d9bb]/10 transition-all">
+                <div className="flex flex-wrap gap-2.5 sm:gap-3 pb-1">
+                  <button
+                    onClick={() => setIsAddWhitelistDialogOpen(true)}
+                    className="flex flex-col items-center gap-1.5 w-[75px] sm:w-[85px] shrink-0"
+                  >
+                    <div className="w-10 h-10 rounded-full border-2 border-dashed border-gray-600 flex items-center justify-center hover:border-[#26d9bb] hover:bg-[#26d9bb]/10 transition-all shrink-0">
                       <span className="material-symbols-outlined text-gray-400 text-lg">
                         add
                       </span>
                     </div>
-                    <span className="text-[10px] text-gray-400">Add New</span>
+                    <span className="text-[10px] text-gray-400 text-center leading-tight break-words">Add New</span>
                   </button>
-                  {whitelistItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex flex-col items-center gap-1.5 min-w-[60px] shrink-0"
-                    >
-                      <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
-                        <span className="material-symbols-outlined text-emerald-500 text-lg">
-                          verified_user
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-gray-200 truncate w-full text-center">
-                        {item.name}
-                      </span>
+                  {whitelistItems.length > 0 ? (
+                    whitelistItems.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={(e) => handleWhitelistItemClick(item, e)}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="flex flex-col items-center gap-1.5 w-[75px] sm:w-[85px] shrink-0 hover:opacity-80 transition-opacity cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#26d9bb]/50 rounded-lg p-1.5"
+                        type="button"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined text-emerald-500 text-lg">
+                            verified_user
+                          </span>
+                        </div>
+                        <div className="w-full flex flex-col items-center gap-0.5 min-w-0 px-0.5">
+                          <span className="text-[10px] sm:text-[11px] font-medium text-gray-200 text-center break-words leading-tight w-full">
+                            {item.name}
+                          </span>
+                          {item.number && item.number.trim() && (
+                            <span className="text-[8px] sm:text-[9px] text-gray-400 text-center break-all leading-tight w-full hyphens-auto">
+                              {item.number}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="text-[10px] text-gray-400 text-center w-full py-2">
+                      No whitelist items yet
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </TabsContent>
 
             {/* Contacts Tab */}
             <TabsContent value="contacts" className="mt-4 space-y-4">
-              <div className="flex items-center justify-between mb-2 px-1">
-                <h3 className="text-[11px] font-semibold text-gray-300 uppercase tracking-wider">
-                  Contacts
-                </h3>
-                <button className="flex items-center gap-1 text-[10px] text-[#26d9bb] hover:text-[#20c4a8] font-medium transition-colors">
-                  <span className="material-symbols-outlined text-[14px]">
-                    person_add
-                  </span>
-                  Add Contact
-                </button>
-              </div>
-              <div className="bg-[#151e32] border border-gray-800 rounded-xl overflow-hidden shadow-lg">
-                {contacts.map((contact, index) => (
-                  <div
-                    key={contact.id}
-                    className={`p-3 hover:bg-gray-800/30 transition-colors flex items-center gap-3 ${
-                      index < contacts.length - 1
-                        ? 'border-b border-gray-800/50'
-                        : ''
-                    }`}
-                  >
-                    <div
-                      className={`w-9 h-9 rounded-full ${getContactColor(
-                        contact.color
-                      )} flex items-center justify-center text-xs font-bold shrink-0`}
-                    >
-                      {contact.initials}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-medium text-gray-100 truncate">
-                        {contact.name}
-                      </h4>
-                      <p className="text-[10px] text-gray-500">{contact.type}</p>
-                    </div>
-                    <span className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)] shrink-0"></span>
+              {contactAccessEnabled ? (
+                <>
+                  <div className="flex items-center justify-between mb-2 px-1">
+                    <h3 className="text-[11px] font-semibold text-gray-300 uppercase tracking-wider">
+                      Contacts
+                    </h3>
+                    <button className="flex items-center gap-1 text-[10px] text-[#26d9bb] hover:text-[#20c4a8] font-medium transition-colors">
+                      <span className="material-symbols-outlined text-[14px]">
+                        person_add
+                      </span>
+                      Add Contact
+                    </button>
                   </div>
-                ))}
-              </div>
+                  <div className="bg-[#151e32] border border-gray-800 rounded-xl overflow-hidden shadow-lg">
+                    {contacts.map((contact, index) => (
+                      <div
+                        key={contact.id}
+                        className={`p-3 hover:bg-gray-800/30 transition-colors flex items-center gap-3 ${
+                          index < contacts.length - 1
+                            ? 'border-b border-gray-800/50'
+                            : ''
+                        }`}
+                      >
+                        <div
+                          className={`w-9 h-9 rounded-full ${getContactColor(
+                            contact.color
+                          )} flex items-center justify-center text-xs font-bold shrink-0`}
+                        >
+                          {contact.initials}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-sm font-medium text-gray-100 truncate">
+                            {contact.name}
+                          </h4>
+                          <p className="text-[10px] text-gray-500">{contact.type}</p>
+                        </div>
+                        <span className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)] shrink-0"></span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="bg-[#151e32] border border-gray-800 rounded-xl p-6 shadow-lg">
+                  <div className="flex flex-col items-center justify-center text-center space-y-4">
+                    {/* Contact Icon */}
+                    <div className="w-16 h-16 rounded-xl bg-[#26d9bb]/20 flex items-center justify-center">
+                      <span
+                        className="material-symbols-outlined text-[#26d9bb] text-3xl"
+                        style={{ fontVariationSettings: '"FILL" 1, "wght" 400' }}
+                      >
+                        contacts
+                      </span>
+                    </div>
+                    
+                    {/* Message */}
+                    <div className="space-y-2">
+                      <h3 className="text-base font-semibold text-white">
+                        Contact Access Required
+                      </h3>
+                      <p className="text-sm text-gray-400 leading-relaxed max-w-xs">
+                        Give contact access to see your contacts and enable better call protection.
+                      </p>
+                    </div>
+
+                    {/* Button to Settings */}
+                    <button
+                      onClick={() => router.push('/settings')}
+                      className="px-6 py-3 rounded-xl bg-[#26d9bb] text-white font-semibold hover:bg-[#20c4a8] transition-colors flex items-center gap-2 min-h-[44px]"
+                    >
+                      <span className="material-symbols-outlined text-lg">
+                        settings
+                      </span>
+                      Go to Settings
+                    </button>
+                  </div>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>
       </div>
+
+      {/* Add Whitelist Dialog - Outside scrollable area */}
+      <MobileModal
+        open={isAddWhitelistDialogOpen}
+        onOpenChange={setIsAddWhitelistDialogOpen}
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (newWhitelistName.trim()) {
+              handleAddWhitelist();
+            }
+          }}
+          className="space-y-4"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold text-white">Add New Whitelist</h2>
+            <p className="text-sm text-gray-400">
+              Add a trusted contact or number to your whitelist. Calls from these numbers will not be blocked.
+            </p>
+          </div>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-200">
+                Name
+              </label>
+              <Input
+                placeholder="e.g., Bank, Office, Doctor"
+                value={newWhitelistName}
+                onChange={(e) => setNewWhitelistName(e.target.value)}
+                className="bg-[#0B1121] border-gray-700 text-white"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-200">
+                Phone Number (Optional)
+              </label>
+              <Input
+                type="tel"
+                placeholder="+1 (555) 123-4567"
+                value={newWhitelistNumber}
+                onChange={(e) => {
+                  setNewWhitelistNumber(e.target.value);
+                }}
+                onInput={(e) => {
+                  // Ensure input events work
+                  const target = e.target as HTMLInputElement;
+                  setNewWhitelistNumber(target.value);
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+                onFocus={(e) => {
+                  e.stopPropagation();
+                }}
+                className="bg-[#0B1121] border-gray-700 text-white"
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (newWhitelistName.trim()) {
+                      handleAddWhitelist();
+                    }
+                  }
+                }}
+                autoComplete="tel"
+              />
+            </div>
+          </div>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsAddWhitelistDialogOpen(false);
+                setNewWhitelistName('');
+                setNewWhitelistNumber('');
+              }}
+              className="border-gray-700 text-gray-300 hover:bg-gray-800"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              className="bg-[#26d9bb] text-white hover:bg-[#20c4a8] disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!newWhitelistName.trim()}
+            >
+              Add to Whitelist
+            </Button>
+          </div>
+        </form>
+      </MobileModal>
+
+      {/* View Whitelist Item Dialog */}
+      <MobileModal
+        open={isViewWhitelistDialogOpen}
+        onOpenChange={(open) => {
+          setIsViewWhitelistDialogOpen(open);
+          if (!open) {
+            setSelectedWhitelistItem(null);
+            setEditingPhoneNumber('');
+          }
+        }}
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleUpdateWhitelistNumber();
+          }}
+          className="space-y-4"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold text-white">Whitelist Details</h2>
+            <p className="text-sm text-gray-400">
+              View and edit details of this whitelist entry.
+            </p>
+          </div>
+          {selectedWhitelistItem && (() => {
+            // Get the latest item data from state to ensure we show current data
+            const currentItem = whitelistItems.find(item => item.id === selectedWhitelistItem.id) || selectedWhitelistItem;
+            return (
+              <div className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-400">
+                    Name
+                  </label>
+                  <div className="text-base font-medium text-white bg-[#0B1121] border border-gray-700 rounded-md px-3 py-2">
+                    {currentItem.name}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-400">
+                    Phone Number
+                  </label>
+                  <Input
+                    type="tel"
+                    placeholder="+1 (555) 123-4567"
+                    value={editingPhoneNumber}
+                    onChange={(e) => {
+                      setEditingPhoneNumber(e.target.value);
+                    }}
+                    onInput={(e) => {
+                      const target = e.target as HTMLInputElement;
+                      setEditingPhoneNumber(target.value);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    onFocus={(e) => e.stopPropagation()}
+                    className="bg-[#0B1121] border-gray-700 text-white"
+                    autoComplete="tel"
+                  />
+                </div>
+              </div>
+            );
+          })()}
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsViewWhitelistDialogOpen(false);
+                setSelectedWhitelistItem(null);
+                setEditingPhoneNumber('');
+              }}
+              className="border-gray-700 text-gray-300 hover:bg-gray-800"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleUpdateWhitelistNumber();
+              }}
+              className="bg-[#26d9bb] text-white hover:bg-[#20c4a8]"
+            >
+              Save
+            </Button>
+          </div>
+        </form>
+      </MobileModal>
     </AppLayout>
   );
 }

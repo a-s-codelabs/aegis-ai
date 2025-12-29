@@ -90,3 +90,19 @@ export function getVoicePreference(): VoicePreference {
   return saved && ['default', 'female', 'male'].includes(saved) ? saved : 'default';
 }
 
+export type VoiceStyle = 'Direct' | 'Neutral' | 'Empathetic';
+
+export function getVoiceStyle(): VoiceStyle {
+  if (typeof window === 'undefined') return 'Neutral';
+  const saved = localStorage.getItem('voiceStyle') as VoiceStyle;
+  return saved && ['Direct', 'Neutral', 'Empathetic'].includes(saved) ? saved : 'Neutral';
+}
+
+export type SensitivityLevel = 'LOW' | 'STANDARD' | 'HIGH';
+
+export function getDiversionSensitivity(): SensitivityLevel {
+  if (typeof window === 'undefined') return 'STANDARD';
+  const saved = localStorage.getItem('diversionSensitivity') as SensitivityLevel;
+  return saved && ['LOW', 'STANDARD', 'HIGH'].includes(saved) ? saved : 'STANDARD';
+}
+

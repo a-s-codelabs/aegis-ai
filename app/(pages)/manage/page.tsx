@@ -10,8 +10,19 @@ type SensitivityLevel = 'LOW' | 'STANDARD' | 'HIGH';
 type VoiceStyle = 'Direct' | 'Neutral' | 'Empathetic';
 type VoicePreference = 'default' | 'female' | 'male';
 
+interface UserSession {
+  userId: string;
+  phoneNumber: string;
+  token: string;
+  name?: string;
+  profilePicture?: string | null;
+}
+
 export default function ManagePage() {
   const router = useRouter();
+  const [userSession, setUserSession] = useState<UserSession | null>(null);
+  const [userInitials, setUserInitials] = useState('U');
+  const [divertCallPopupEnabled, setDivertCallPopupEnabled] = useState(true);
   const [isAiGuardianEnabled, setIsAiGuardianEnabled] = useState(true);
   const [sensitivityLevel, setSensitivityLevel] =
     useState<SensitivityLevel>('HIGH');
@@ -20,6 +31,7 @@ export default function ManagePage() {
   const [voiceStyleValue, setVoiceStyleValue] = useState(65); // 0-33: Direct, 34-66: Neutral, 67-100: Empathetic
   const [selectedVoiceAgent, setSelectedVoiceAgent] =
     useState<VoicePreference>('default');
+  const [currentDiversionMessage, setCurrentDiversionMessage] = useState('Standard Anti-Scam Warning');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -28,39 +40,231 @@ export default function ManagePage() {
         router.push('/auth/login');
         return;
       }
+
+      try {
+        const session: UserSession = JSON.parse(sessionData);
+        setUserSession(session);
+
+        // Get user initials from name or phone number
+        if (session.name) {
+          const names = session.name.trim().split(' ');
+          if (names.length >= 2) {
+            setUserInitials(
+              (names[0][0] + names[names.length - 1][0]).toUpperCase()
+            );
+          } else {
+            setUserInitials(session.name[0].toUpperCase());
+          }
+        } else if (session.phoneNumber) {
+          setUserInitials(session.phoneNumber.slice(-1));
+        }
+      } catch (error) {
+        console.error('[Manage] Error parsing session:', error);
+        router.push('/auth/login');
+        return;
+      }
+
       const savedVoice = getVoicePreference();
       setSelectedVoiceAgent(savedVoice);
+
+      // Load diversion sensitivity preference from localStorage
+      const savedSensitivity = localStorage.getItem('diversionSensitivity') as SensitivityLevel | null;
+      const savedSensitivityValue = localStorage.getItem('diversionSensitivityValue');
+      if (savedSensitivity && ['LOW', 'STANDARD', 'HIGH'].includes(savedSensitivity)) {
+        setSensitivityLevel(savedSensitivity);
+      }
+      if (savedSensitivityValue) {
+        const value = Number(savedSensitivityValue);
+        if (!isNaN(value) && value >= 0 && value <= 100) {
+          setSensitivityValue(value);
+        }
+      }
+
+      // Load voice style preference from localStorage
+      const savedVoiceStyle = localStorage.getItem('voiceStyle') as VoiceStyle | null;
+      const savedVoiceStyleValue = localStorage.getItem('voiceStyleValue');
+      if (savedVoiceStyle && ['Direct', 'Neutral', 'Empathetic'].includes(savedVoiceStyle)) {
+        setVoiceStyle(savedVoiceStyle);
+      }
+      if (savedVoiceStyleValue) {
+        const value = Number(savedVoiceStyleValue);
+        if (!isNaN(value) && value >= 0 && value <= 100) {
+          setVoiceStyleValue(value);
+        }
+      }
+
+      // Load current diversion message name
+      const savedMessageId = localStorage.getItem('diversionMessageId') || 'standard';
+      const messageNames: Record<string, string> = {
+        standard: 'Standard Anti-Scam Warning',
+        firm: 'Firm Security Notice',
+        brief: 'Brief Security Alert',
+        polite: 'Polite Security Notice',
+      };
+      setCurrentDiversionMessage(messageNames[savedMessageId] || 'Standard Anti-Scam Warning');
+
+      // Load divert call popup preference from localStorage (this controls both toggles)
+      const savedDivertCallPopup = localStorage.getItem('divertCallPopupEnabled');
+      if (savedDivertCallPopup !== null) {
+        const value = savedDivertCallPopup === 'true';
+        setDivertCallPopupEnabled(value);
+        setIsAiGuardianEnabled(value); // Sync AI Call Guardian with Divert Call Popup
+      } else {
+        // Default to true if not set
+        setDivertCallPopupEnabled(true);
+        setIsAiGuardianEnabled(true);
+      }
     }
   }, [router]);
 
+  // Listen for profile updates and divert call popup changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handleStorageChange = () => {
+        const sessionData = localStorage.getItem('userSession');
+        if (sessionData) {
+          try {
+            const session: UserSession = JSON.parse(sessionData);
+            setUserSession(session);
+
+            // Update initials if name changed
+            if (session.name) {
+              const names = session.name.trim().split(' ');
+              if (names.length >= 2) {
+                setUserInitials(
+                  (names[0][0] + names[names.length - 1][0]).toUpperCase()
+                );
+              } else {
+                setUserInitials(session.name[0].toUpperCase());
+              }
+            } else if (session.phoneNumber) {
+              setUserInitials(session.phoneNumber.slice(-1));
+            }
+          } catch (error) {
+            console.error('[Manage] Error parsing session:', error);
+          }
+        }
+      };
+
+      const handleDivertCallPopupChange = () => {
+        const savedDivertCallPopup = localStorage.getItem('divertCallPopupEnabled');
+        if (savedDivertCallPopup !== null) {
+          const value = savedDivertCallPopup === 'true';
+          setDivertCallPopupEnabled(value);
+          setIsAiGuardianEnabled(value); // Sync AI Call Guardian with Divert Call Popup
+        } else {
+          setDivertCallPopupEnabled(true);
+          setIsAiGuardianEnabled(true);
+        }
+      };
+
+      // Listen for storage events (from other tabs/windows)
+      window.addEventListener('storage', (e) => {
+        if (e.key === 'userSession') {
+          handleStorageChange();
+        } else if (e.key === 'divertCallPopupEnabled') {
+          handleDivertCallPopupChange();
+        }
+      });
+
+      // Listen for custom events (from same tab)
+      window.addEventListener('profileUpdated', handleStorageChange);
+      window.addEventListener('divertCallPopupChanged', handleDivertCallPopupChange);
+      
+      const handleDiversionMessageChange = () => {
+        const savedMessageId = localStorage.getItem('diversionMessageId') || 'standard';
+        const messageNames: Record<string, string> = {
+          standard: 'Standard Anti-Scam Warning',
+          firm: 'Firm Security Notice',
+          brief: 'Brief Security Alert',
+          polite: 'Polite Security Notice',
+        };
+        setCurrentDiversionMessage(messageNames[savedMessageId] || 'Standard Anti-Scam Warning');
+      };
+      
+      window.addEventListener('diversionMessageChanged', handleDiversionMessageChange);
+
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('profileUpdated', handleStorageChange);
+        window.removeEventListener('divertCallPopupChanged', handleDivertCallPopupChange);
+        window.removeEventListener('diversionMessageChanged', handleDiversionMessageChange);
+      };
+    }
+  }, []);
+
   // Update sensitivity level based on slider value
   useEffect(() => {
+    let newLevel: SensitivityLevel;
     if (sensitivityValue <= 33) {
-      setSensitivityLevel('LOW');
+      newLevel = 'LOW';
     } else if (sensitivityValue <= 66) {
-      setSensitivityLevel('STANDARD');
+      newLevel = 'STANDARD';
     } else {
-      setSensitivityLevel('HIGH');
+      newLevel = 'HIGH';
     }
-  }, [sensitivityValue]);
+    
+    if (newLevel !== sensitivityLevel) {
+      setSensitivityLevel(newLevel);
+      
+      // Save to localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('diversionSensitivity', newLevel);
+        localStorage.setItem('diversionSensitivityValue', String(sensitivityValue));
+        
+        // Dispatch event to notify other components
+        window.dispatchEvent(new CustomEvent('diversionSensitivityChanged', { 
+          detail: { level: newLevel, value: sensitivityValue } 
+        }));
+      }
+    }
+  }, [sensitivityValue, sensitivityLevel]);
 
   // Update voice style based on slider value
   useEffect(() => {
+    let newStyle: VoiceStyle;
     if (voiceStyleValue <= 33) {
-      setVoiceStyle('Direct');
+      newStyle = 'Direct';
     } else if (voiceStyleValue <= 66) {
-      setVoiceStyle('Neutral');
+      newStyle = 'Neutral';
     } else {
-      setVoiceStyle('Empathetic');
+      newStyle = 'Empathetic';
     }
-  }, [voiceStyleValue]);
+    
+    if (newStyle !== voiceStyle) {
+      setVoiceStyle(newStyle);
+      
+      // Save to localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('voiceStyle', newStyle);
+        localStorage.setItem('voiceStyleValue', String(voiceStyleValue));
+        
+        // Dispatch event to notify other components
+        window.dispatchEvent(new CustomEvent('voiceStyleChanged', { 
+          detail: { style: newStyle, value: voiceStyleValue } 
+        }));
+      }
+    }
+  }, [voiceStyleValue, voiceStyle]);
 
   const handleSensitivityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSensitivityValue(Number(e.target.value));
+    const newValue = Number(e.target.value);
+    setSensitivityValue(newValue);
+    
+    // Save to localStorage immediately
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('diversionSensitivityValue', String(newValue));
+    }
   };
 
   const handleVoiceStyleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setVoiceStyleValue(Number(e.target.value));
+    const newValue = Number(e.target.value);
+    setVoiceStyleValue(newValue);
+    
+    // Save to localStorage immediately
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('voiceStyleValue', String(newValue));
+    }
   };
 
   const handleVoiceAgentChange = async (agent: VoicePreference) => {
@@ -102,15 +306,29 @@ export default function ManagePage() {
           <h2 className="text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">
             Smart Call Diversion
           </h2>
-          <div className="flex size-10 items-center justify-center">
-            <div
-              className="h-9 w-9 rounded-full bg-cover bg-center border-2 border-[#26d9bb]/50 shadow-[0_0_10px_rgba(38,217,187,0.2)]"
-              style={{
-                backgroundImage:
-                  'url("https://lh3.googleusercontent.com/aida-public/AB6AXuCl96waA_f8iWLSu-peVKVNbtjqeREe240BiESXm3AgPfDS8Zy1ZvEgUQrnuXMgxtVRzzV4AylkAXSwncuWZWSmbvswJmtAHlGRYl6Rv2eDJD4e-pyWt12ofpFd0qm2O9K6M1gr18o-CLqe7D-HhCxhd0p7TujTs4Yvwk71F1jjLGN_h9G9JlwIyaCb-E5_sG91XeNxWZQ4bkZuEdptq6AEKLvzrevN8bJO4zBhjROteNjj2woMZOegqb1V0LOi2656MNME9g3HA01w")',
-              }}
-            ></div>
-          </div>
+          <button
+            onClick={() => router.push('/settings')}
+            className="relative flex size-10 items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
+          >
+            {userSession?.profilePicture ? (
+              <div className="h-9 w-9 rounded-full overflow-hidden border-2 border-[#26d9bb]/50 shadow-[0_0_10px_rgba(38,217,187,0.2)]">
+                <img
+                  src={userSession.profilePicture}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-amber-100 to-amber-200 border-2 border-[#26d9bb]/50 shadow-[0_0_10px_rgba(38,217,187,0.2)] flex items-center justify-center">
+                <span className="text-sm font-bold text-amber-900">
+                  {userInitials}
+                </span>
+              </div>
+            )}
+            {divertCallPopupEnabled && (
+              <span className="absolute top-0 right-0 w-3 h-3 bg-[#26d9bb] rounded-full border-2 border-[#0B1121]"></span>
+            )}
+          </button>
         </div>
 
         {/* AI Call Guardian Section */}
@@ -138,30 +356,44 @@ export default function ManagePage() {
                   <input
                     type="checkbox"
                     checked={isAiGuardianEnabled}
-                    onChange={(e) => setIsAiGuardianEnabled(e.target.checked)}
+                    onChange={(e) => {
+                      const newValue = e.target.checked;
+                      setIsAiGuardianEnabled(newValue);
+                      setDivertCallPopupEnabled(newValue);
+                      // Persist to localStorage (this controls both toggles)
+                      if (typeof window !== 'undefined') {
+                        localStorage.setItem('divertCallPopupEnabled', String(newValue));
+                        // Dispatch event to notify other components
+                        window.dispatchEvent(new Event('divertCallPopupChanged'));
+                      }
+                    }}
                     className="peer sr-only"
                   />
                   <div className="h-[22px] w-[22px] rounded-full bg-white shadow-sm transition-all duration-300"></div>
                 </label>
               </div>
-              <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent my-4"></div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="relative flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#26d9bb] opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#26d9bb]"></span>
+              {isAiGuardianEnabled && (
+                <>
+                  <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent my-4"></div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="relative flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#26d9bb] opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#26d9bb]"></span>
+                      </div>
+                      <span className="text-[#26d9bb] font-semibold text-xs tracking-wide uppercase">
+                        Protection Active
+                      </span>
+                    </div>
+                    <button className="text-xs font-medium text-[#94a3b8] hover:text-white transition-colors flex items-center gap-1">
+                      View Log{' '}
+                      <span className="material-symbols-outlined text-[14px]">
+                        arrow_forward
+                      </span>
+                    </button>
                   </div>
-                  <span className="text-[#26d9bb] font-semibold text-xs tracking-wide uppercase">
-                    Protection Active
-                  </span>
-                </div>
-                <button className="text-xs font-medium text-[#94a3b8] hover:text-white transition-colors flex items-center gap-1">
-                  View Log{' '}
-                  <span className="material-symbols-outlined text-[14px]">
-                    arrow_forward
-                  </span>
-                </button>
-              </div>
+                </>
+              )}
             </div>
           </div>
         
@@ -170,7 +402,7 @@ export default function ManagePage() {
         <div>
           <p className="text-[#94a3b8] text-sm leading-relaxed">
             When enabled, suspicious calls are automatically diverted to our AI
-            agent. The AI engages the caller to determine intent, and you'll
+            agent. The AI engages the caller to determine intent and you'll
             receive a real-time transcript.
           </p>
         </div>
@@ -238,7 +470,10 @@ export default function ManagePage() {
 
           {/* Custom Diversion Message */}
           <div className="rounded-xl border border-white/5 bg-[#131b26] p-1 shadow-lg mb-4">
-            <button className="flex w-full items-center justify-between p-4 hover:bg-white/5 rounded-lg transition-colors group">
+            <button 
+              onClick={() => router.push('/manage/diversion-messages')}
+              className="flex w-full items-center justify-between p-4 hover:bg-white/5 rounded-lg transition-colors group"
+            >
               <div className="flex items-center gap-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1e2936] text-[#26d9bb] border border-white/5">
                   <span className="material-symbols-outlined">graphic_eq</span>
@@ -248,7 +483,7 @@ export default function ManagePage() {
                     Custom Diversion Message
                   </p>
                   <p className="text-xs text-[#94a3b8] mt-0.5">
-                    Current: "Standard Anti-Scam Warning"
+                    Current: "{currentDiversionMessage}"
                   </p>
                 </div>
               </div>

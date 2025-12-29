@@ -35,6 +35,11 @@ export interface ElevenLabsClientOptions {
    */
   voice?: 'default' | 'female' | 'male';
   /**
+   * Voice style: 'Direct', 'Neutral', or 'Empathetic'
+   * Controls the conversation tone and style of the AI agent
+   */
+  voiceStyle?: 'Direct' | 'Neutral' | 'Empathetic';
+  /**
    * Callback when caller's speech is transcribed
    */
   onUserTranscript?: (text: string) => void;
@@ -62,6 +67,7 @@ export class ElevenLabsClient {
   private readonly options: ElevenLabsClientOptions;
   private readonly playbackRate: number;
   private voicePreference: 'default' | 'female' | 'male';
+  private voiceStyle: 'Direct' | 'Neutral' | 'Empathetic';
   private fallbackAudio: HTMLAudioElement | null = null;
   private mediaStream: MediaStream | null = null;
   private audioContext: AudioContext | null = null;
@@ -75,6 +81,19 @@ export class ElevenLabsClient {
     this.options = options ?? {};
     this.playbackRate = 0.6;
     this.voicePreference = this.options.voice ?? 'default';
+    
+    // Get voice style from options or localStorage
+    if (this.options.voiceStyle) {
+      this.voiceStyle = this.options.voiceStyle;
+    } else if (typeof window !== 'undefined') {
+      const savedStyle = localStorage.getItem('voiceStyle');
+      this.voiceStyle = (savedStyle === 'Direct' || savedStyle === 'Neutral' || savedStyle === 'Empathetic') 
+        ? savedStyle 
+        : 'Neutral';
+    } else {
+      this.voiceStyle = 'Neutral';
+    }
+    
     if (this.options.fallbackGreetingAudioUrl && typeof window !== 'undefined') {
       this.fallbackAudio = new Audio(this.options.fallbackGreetingAudioUrl);
     }
@@ -84,6 +103,14 @@ export class ElevenLabsClient {
     this.voicePreference = voice;
     // NOTE: Voice changes require a new agent session (new signed URL with different agent_id)
     // This method updates the preference for the next call, but current call will continue with original agent
+  }
+
+  setVoiceStyle(style: 'Direct' | 'Neutral' | 'Empathetic') {
+    this.voiceStyle = style;
+    // Save to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('voiceStyle', style);
+    }
   }
 
   /**
@@ -103,7 +130,10 @@ export class ElevenLabsClient {
       const res = await fetch('/api/elevenlabs-signed-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ voice: this.voicePreference }),
+        body: JSON.stringify({ 
+          voice: this.voicePreference,
+          voiceStyle: this.voiceStyle 
+        }),
       });
       if (!res.ok) {
         let errorMessage = `Failed to fetch signed URL: ${res.status} ${res.statusText}`;
@@ -313,9 +343,11 @@ export class ElevenLabsClient {
         if (this.ws) {
           const payload: any = {
             playback_speed: 0.6,
+            voice_style: this.voiceStyle, // Pass voice style to ElevenLabs
           };
           try {
             this.ws.send(JSON.stringify(payload));
+            console.log('[ElevenLabsClient] Voice style sent:', this.voiceStyle);
           } catch (error) {
             console.error('[ElevenLabsClient] Error sending initial config:', error);
           }
@@ -933,6 +965,139 @@ export class ElevenLabsClient {
       this.isPlayingAudio = false;
       // Try next chunk
       this.processAudioQueue();
+    }
+  }
+
+  /**
+   * Send scam warning message through agent and terminate call
+   * Used when scam risk exceeds threshold (>=70)
+   * This sends a normal agent message that will be recorded and transcribed
+   */
+  async sendScamWarningAndTerminate(): Promise<void> {
+    console.log('[ElevenLabsClient] 🚨 Sending scam warning message through agent...');
+    
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      console.error('[ElevenLabsClient] WebSocket not open, cannot send warning message');
+      this.cleanup();
+      return;
+    }
+
+    try {
+      // Get warning message text (exact message as per requirements)
+      const warningMessage = "This call appears suspicious. For your safety, I cannot continue this conversation. Please contact official support channels. Goodbye.";
+
+      // Stop microphone streaming immediately (no more caller input)
+      if (this.audioProcessor) {
+        try {
+          this.audioProcessor.disconnect();
+        } catch (error) {
+          // Ignore disconnect errors
+        }
+        this.audioProcessor = null;
+      }
+
+      if (this.audioSource) {
+        try {
+          this.audioSource.disconnect();
+        } catch (error) {
+          // Ignore disconnect errors
+        }
+        this.audioSource = null;
+      }
+
+      if (this.mediaStream) {
+        this.mediaStream.getTracks().forEach((track) => track.stop());
+        this.mediaStream = null;
+      }
+
+      // Send text message to agent via WebSocket
+      // For ElevenLabs ConvAI, we send the message as a text input that the agent will process and speak
+      // The agent will use its configured voice and speak the message
+      const messagePayload = {
+        type: 'text',
+        text: warningMessage,
+        playback_speed: 0.6, // Fixed playback speed for all voices
+      };
+
+      console.log('[ElevenLabsClient] 📤 Sending warning message to agent:', warningMessage);
+      console.log('[ElevenLabsClient] 🎤 Agent will speak this message using selected voice');
+      this.ws.send(JSON.stringify(messagePayload));
+
+      // Add message to transcript immediately
+      this.options.onAgentResponse?.(warningMessage);
+
+      // Wait for audio playback to complete
+      // We'll listen for the agent_response_event to know when it's done speaking
+      const playbackComplete = new Promise<void>((resolve) => {
+        const timeout = setTimeout(() => {
+          console.log('[ElevenLabsClient] ⏱️ Playback timeout, proceeding with termination');
+          resolve();
+        }, 10000); // 10 second max wait
+
+        const originalOnMessage = this.ws?.onmessage;
+        if (this.ws) {
+          const checkComplete = (event: MessageEvent) => {
+            try {
+              if (typeof event.data === 'string') {
+                const eventData = JSON.parse(event.data);
+                // Check if agent finished speaking (audio_output complete or agent_response_event)
+                if (
+                  eventData.type === 'agent_response_event' ||
+                  (eventData.type === 'audio' && eventData.audio_event?.is_final)
+                ) {
+                  clearTimeout(timeout);
+                  if (this.ws) {
+                    this.ws.onmessage = originalOnMessage || null;
+                  }
+                  resolve();
+                }
+              }
+            } catch (error) {
+              // Continue waiting
+            }
+          };
+
+          // Temporarily override message handler
+          this.ws.onmessage = checkComplete as any;
+        } else {
+          clearTimeout(timeout);
+          resolve();
+        }
+      });
+
+      await playbackComplete;
+      console.log('[ElevenLabsClient] ✅ Warning message playback complete, terminating call...');
+
+      // Terminate call by closing WebSocket
+      if (this.ws) {
+        try {
+          // Send conversation end event
+          const endPayload = {
+            type: 'conversation_end_event',
+          };
+          this.ws.send(JSON.stringify(endPayload));
+          
+          // Close WebSocket after a brief delay
+          setTimeout(() => {
+            if (this.ws) {
+              this.ws.close();
+            }
+          }, 500);
+        } catch (error) {
+          console.error('[ElevenLabsClient] Error sending end event:', error);
+          if (this.ws) {
+            this.ws.close();
+          }
+        }
+      }
+
+      // Complete cleanup
+      this.cleanup();
+    } catch (error) {
+      console.error('[ElevenLabsClient] Error sending warning message:', error);
+      // Still terminate the call even if message sending fails
+      this.cleanup();
+      throw error;
     }
   }
 

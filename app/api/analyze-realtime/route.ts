@@ -72,7 +72,25 @@ const SCAM_PATTERNS = [
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { callerText, conversationContext = [], dialogueCount = 0 } = body;
+    const { callerText, conversationContext = [], dialogueCount = 0, sensitivityLevel = 'STANDARD' } = body;
+    
+    // Validate sensitivity level
+    const validSensitivityLevels = ['LOW', 'STANDARD', 'HIGH'];
+    const sensitivity = validSensitivityLevels.includes(sensitivityLevel) ? sensitivityLevel : 'STANDARD';
+    
+    // Define thresholds based on sensitivity level
+    // LOW: Less aggressive (higher threshold) - only flag obvious scams
+    // STANDARD: Balanced threshold
+    // HIGH: More aggressive (lower threshold) - flag more potential scams
+    const SCAM_THRESHOLDS = {
+      LOW: 60,    // >60% = scam (less aggressive)
+      STANDARD: 40, // >40% = scam (balanced)
+      HIGH: 30,    // >30% = scam (more aggressive)
+    };
+    
+    const scamThreshold = SCAM_THRESHOLDS[sensitivity as keyof typeof SCAM_THRESHOLDS] || SCAM_THRESHOLDS.STANDARD;
+    
+    console.log('[AnalyzeRealtime] Sensitivity level:', sensitivity, 'Threshold:', scamThreshold);
 
     if (!callerText || typeof callerText !== 'string') {
       return NextResponse.json(
@@ -175,8 +193,8 @@ export async function POST(req: Request) {
         console.log('[AnalyzeRealtime] 🚨 Forcing high scam score due to OTP/bank balance request');
       }
 
-      // Determine if scam (threshold: >40% = scam)
-      const isScam = finalScore > 40;
+      // Determine if scam based on sensitivity threshold
+      const isScam = finalScore > scamThreshold;
 
       // Determine confidence
       let confidence: 'low' | 'medium' | 'high' = 'low';
@@ -198,8 +216,8 @@ export async function POST(req: Request) {
         aiError
       );
 
-      // Fallback to pattern matching (threshold: >40% = scam)
-      const isScam = baseScore > 40;
+      // Fallback to pattern matching based on sensitivity threshold
+      const isScam = baseScore > scamThreshold;
       let confidence: 'low' | 'medium' | 'high' = 'low';
       if (baseScore >= 70) {
         confidence = 'high';

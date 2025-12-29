@@ -33,10 +33,15 @@ export async function POST(req: Request) {
 
     const body = await req.json().catch(() => ({}));
     const voice = body.voice;
+    const voiceStyle = body.voiceStyle; // 'Direct' | 'Neutral' | 'Empathetic'
 
     // Validate voice preference
     const validVoices = ['default', 'female', 'male'];
     const validatedVoice = validVoices.includes(voice) ? voice : 'default';
+    
+    // Validate voice style
+    const validVoiceStyles = ['Direct', 'Neutral', 'Empathetic'];
+    const validatedVoiceStyle = validVoiceStyles.includes(voiceStyle) ? voiceStyle : 'Neutral';
 
     // Map voice preference to agent_id
     // Environment variables: ELEVENLABS_AGENT_ID_DEFAULT, ELEVENLABS_AGENT_ID_FEMALE, ELEVENLABS_AGENT_ID_MALE
@@ -65,7 +70,7 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log('[ElevenLabs] Requesting signed URL for agent:', agentId, `(voice: ${validatedVoice})`);
+    console.log('[ElevenLabs] Requesting signed URL for agent:', agentId, `(voice: ${validatedVoice}, style: ${validatedVoiceStyle})`);
 
     const url = `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${agentId}`;
 
@@ -139,7 +144,10 @@ export async function POST(req: Request) {
     }
 
     console.log('[ElevenLabs] Successfully obtained signed URL');
-    return Response.json({ signedUrl: data.signed_url })
+    return Response.json({ 
+      signedUrl: data.signed_url,
+      voiceStyle: validatedVoiceStyle 
+    })
   } catch (error) {
     console.error('[ElevenLabs] Error getting signed URL:', error);
     return Response.json(

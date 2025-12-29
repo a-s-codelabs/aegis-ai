@@ -1189,9 +1189,6 @@ export default function UserDashboard() {
                       value={newContactPhone}
                       onChange={(e) => setNewContactPhone(e.target.value)}
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Format: +1 (555) 123-4567 or any format
-                    </p>
                   </div>
                 </div>
                 <DialogFooter>

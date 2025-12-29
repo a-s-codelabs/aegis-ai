@@ -59,6 +59,8 @@ export default function LoginPage() {
           JSON.stringify({
             userId: data.userId,
             phoneNumber: data.phoneNumber,
+            name: data.name,
+            profilePicture: data.profilePicture || null,
             token: data.token,
           })
         );

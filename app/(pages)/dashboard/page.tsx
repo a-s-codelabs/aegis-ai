@@ -12,7 +12,7 @@ import {
   getRandomConversation,
 } from '@/lib/utils/call-conversations';
 import { ElevenLabsClient } from '@/lib/utils/elevenlabs-client';
-import { VoiceSelector, getVoicePreference } from '@/components/voice-selector';
+import { VoiceSelector, getVoicePreference, getDiversionSensitivity } from '@/components/voice-selector';
 
 interface UserSession {
   userId: string;
@@ -27,8 +27,10 @@ interface Call {
   number: string;
   timestamp: Date;
   duration: number;
-  status: 'scam' | 'safe' | 'unknown';
+  status: 'scam' | 'safe' | 'unknown' | 'blocked';
   risk?: number;
+  diversionTriggered?: boolean;
+  diversionTimestamp?: Date;
 }
 
 // Dashboard Content Component (to be rendered inside iPhone)
@@ -50,11 +52,13 @@ interface DashboardContentProps {
   blocklist: string[];
   realtimeScamScore: number;
   realtimeKeywords: string[];
+  callStatus: 'active' | 'blocked' | 'ended';
   onEndCall: () => void;
   onViewFullMonitoring: () => void;
   getCallIcon: (status: Call['status']) => string;
   getCallStatusBadge: (status: Call['status'], risk?: number) => React.ReactElement;
   formatDuration: (seconds: number) => string;
+  router: ReturnType<typeof useRouter>;
 }
 
 // Full Page Monitoring Content Component (to be rendered inside iPhone)
@@ -84,6 +88,7 @@ interface IncomingCallContentProps {
   onDecline: () => void;
   onDivertToAI: () => void;
   onAccept: () => void;
+  showDivertButton?: boolean;
 }
 
 function DashboardContent({
@@ -94,11 +99,13 @@ function DashboardContent({
   blocklist,
   realtimeScamScore,
   realtimeKeywords,
+  callStatus,
   onEndCall,
   onViewFullMonitoring,
   getCallIcon,
   getCallStatusBadge,
   formatDuration,
+  router,
 }: DashboardContentProps) {
   return (
     <AppLayout fullWidth>
@@ -109,7 +116,12 @@ function DashboardContent({
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h2 className="text-white font-semibold text-base flex items-center gap-2">
-                  {activeCall.risk < 20 ? (
+                  {callStatus === 'blocked' ? (
+                    <span className="relative flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
+                    </span>
+                  ) : activeCall.risk < 20 ? (
                     <span className="relative flex h-3 w-3">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
@@ -120,7 +132,7 @@ function DashboardContent({
                       <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
                     </span>
                   )}
-                  Active Call Monitoring
+                  {callStatus === 'blocked' ? 'Blocked – Security Risk' : 'Active Call Monitoring'}
                 </h2>
                 <p className="text-slate-400 text-xs mt-1">
                   {activeCall.number}
@@ -250,56 +262,65 @@ function DashboardContent({
 
         {/* Stats Cards */}
         <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="bg-slate-800/40 border border-slate-700/50 p-3 rounded-xl flex flex-col justify-between h-24 shadow-md">
-            <div className="flex justify-between items-start">
+          <div 
+            onClick={() => router.push('/dashboard/calls?type=all')}
+            className="bg-slate-800/40 border border-slate-700/50 p-3 rounded-xl flex flex-col justify-between h-24 shadow-md cursor-pointer hover:bg-slate-800/60 hover:border-slate-600/50 transition-all active:scale-[0.98]"
+          >
+            <div className="flex items-start gap-2">
+              <span className="text-blue-400">
+                <span className="material-symbols-outlined text-sm">
+                  call
+                </span>
+              </span>
               <span className="text-slate-400 text-[10px] font-medium uppercase leading-tight">
                 Total
                 <br />
                 Calls
               </span>
-              <span className="p-1 rounded-md bg-blue-500/10 text-blue-400">
-                <span className="material-symbols-outlined text-sm">
-                  call
-                </span>
-              </span>
             </div>
-            <span className="text-2xl font-bold text-white mt-1">
+            <span className="text-2xl font-bold text-white text-center">
               {stats.totalCalls}
             </span>
           </div>
 
-          <div className="bg-slate-800/40 border border-slate-700/50 p-3 rounded-xl flex flex-col justify-between h-24 shadow-md">
-            <div className="flex justify-between items-start">
+          <div 
+            onClick={() => router.push('/dashboard/calls?type=scam')}
+            className="bg-slate-800/40 border border-slate-700/50 p-3 rounded-xl flex flex-col justify-between h-24 shadow-md cursor-pointer hover:bg-slate-800/60 hover:border-slate-600/50 transition-all active:scale-[0.98]"
+          >
+            <div className="flex items-start gap-2">
+              <span className="text-red-500">
+                <span className="material-symbols-outlined text-sm">
+                  block
+                </span>
+              </span>
               <span className="text-slate-400 text-[10px] font-medium uppercase leading-tight">
                 Scam
                 <br />
                 Blocked
               </span>
-              <span className="p-1 rounded-md bg-red-500/10 text-red-500">
-                <span className="material-symbols-outlined text-sm">
-                  block
-                </span>
-              </span>
             </div>
-            <span className="text-2xl font-bold text-white mt-1">
+            <span className="text-2xl font-bold text-white text-center">
               {stats.scamBlocked}
             </span>
           </div>
 
-          <div className="bg-slate-800/40 border border-slate-700/50 p-3 rounded-xl flex flex-col justify-between h-24 shadow-md">
-            <div className="flex justify-between items-start">
+          <div 
+            onClick={() => router.push('/dashboard/calls?type=safe')}
+            className="bg-slate-800/40 border border-slate-700/50 p-3 rounded-xl flex flex-col justify-between h-24 shadow-md cursor-pointer hover:bg-slate-800/60 hover:border-slate-600/50 transition-all active:scale-[0.98]"
+          >
+            <div className="flex items-start gap-2">
+              <span className="text-green-500">
+                <span className="material-symbols-outlined text-sm">
+                  verified_user
+                </span>
+              </span>
               <span className="text-slate-400 text-[10px] font-medium uppercase leading-tight">
                 Safe
                 <br />
                 Calls
               </span>
-              <span className="p-1 rounded-md bg-green-500/10 text-green-500">
-                <span className="material-symbols-outlined text-sm">
-                  verified_user
-                </span>
-              </span>
             </div>
-            <span className="text-2xl font-bold text-white mt-1">
+            <span className="text-2xl font-bold text-white text-center">
               {stats.safeCalls}
             </span>
           </div>
@@ -329,6 +350,8 @@ function DashboardContent({
                         ? 'text-red-500'
                         : call.status === 'safe'
                         ? 'text-green-500'
+                        : call.status === 'blocked'
+                        ? 'text-orange-500'
                         : 'text-slate-400'
                     }`}
                   >
@@ -362,6 +385,8 @@ function DashboardContent({
                             ? 'text-red-500'
                             : call.status === 'safe'
                             ? 'text-green-500'
+                            : call.status === 'blocked'
+                            ? 'text-orange-500'
                             : 'text-slate-400'
                         }`}
                       >
@@ -623,6 +648,7 @@ function IncomingCallContent({
   onDecline,
   onDivertToAI,
   onAccept,
+  showDivertButton = true,
 }: IncomingCallContentProps) {
   const isSafeCall = incomingCall.isSafe === true;
   const callPurpose = incomingCall.purpose || '';
@@ -735,7 +761,7 @@ function IncomingCallContent({
 
         {/* Action Buttons Section */}
         <div className="w-full pb-4 z-20">
-          <div className="flex items-end justify-between px-4">
+          <div className={`flex items-end px-4 ${showDivertButton ? 'justify-between' : 'justify-center gap-24'}`}>
             {/* DECLINE Button */}
             <button
               onClick={onDecline}
@@ -756,63 +782,65 @@ function IncomingCallContent({
               </span>
             </button>
 
-            {/* DIVERT TO AI PROTECTION Button */}
-            <button
-              onClick={onDivertToAI}
-              className="flex flex-col items-center gap-2 group active:scale-[0.98] transition-transform"
-            >
-              <div className="flex flex-col items-center -space-y-3 pb-1">
-                <span
-                  className="material-symbols-outlined text-2xl text-[#2dd4bf]/40"
-                  style={{
-                    animation: 'swipe 2s infinite ease-out',
-                    animationDelay: '0.3s',
-                  }}
-                >
-                  keyboard_arrow_up
-                </span>
-                <span
-                  className="material-symbols-outlined text-2xl text-[#2dd4bf]/70"
-                  style={{
-                    animation: 'swipe 2s infinite ease-out',
-                    animationDelay: '0.15s',
-                  }}
-                >
-                  keyboard_arrow_up
-                </span>
-                <span
-                  className="material-symbols-outlined text-2xl text-[#2dd4bf]"
-                  style={{
-                    animation: 'swipe 2s infinite ease-out',
-                    animationDelay: '0s',
-                  }}
-                >
-                  keyboard_arrow_up
-                </span>
-              </div>
-              <div className="relative">
-                <div
-                  className="absolute inset-0 bg-[#2dd4bf]/30 rounded-full opacity-20"
-                  style={{
-                    animation: 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite',
-                  }}
-                ></div>
-                <div className="w-12 h-12 rounded-full bg-[#2dd4bf] flex items-center justify-center shadow-[0_0_40px_rgba(45,212,191,0.3)] hover:shadow-[0_0_60px_rgba(45,212,191,0.5)] border-2 border-white/20 relative overflow-hidden z-10">
-                  <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent z-0 transition-transform duration-1000"></div>
+            {/* DIVERT TO AI PROTECTION Button - Conditionally Rendered */}
+            {showDivertButton && (
+              <button
+                onClick={onDivertToAI}
+                className="flex flex-col items-center gap-2 group active:scale-[0.98] transition-transform"
+              >
+                <div className="flex flex-col items-center -space-y-3 pb-1">
                   <span
-                    className="material-symbols-outlined text-black z-10 text-2xl"
+                    className="material-symbols-outlined text-2xl text-[#2dd4bf]/40"
                     style={{
-                      fontVariationSettings: "'FILL' 1, 'wght' 700",
+                      animation: 'swipe 2s infinite ease-out',
+                      animationDelay: '0.3s',
                     }}
                   >
-                    shield
+                    keyboard_arrow_up
+                  </span>
+                  <span
+                    className="material-symbols-outlined text-2xl text-[#2dd4bf]/70"
+                    style={{
+                      animation: 'swipe 2s infinite ease-out',
+                      animationDelay: '0.15s',
+                    }}
+                  >
+                    keyboard_arrow_up
+                  </span>
+                  <span
+                    className="material-symbols-outlined text-2xl text-[#2dd4bf]"
+                    style={{
+                      animation: 'swipe 2s infinite ease-out',
+                      animationDelay: '0s',
+                    }}
+                  >
+                    keyboard_arrow_up
                   </span>
                 </div>
-              </div>
-              <span className="text-[9px] font-bold text-[#2dd4bf] tracking-widest uppercase drop-shadow-lg text-center leading-tight">
-                Divert to AI Protection
-              </span>
-            </button>
+                <div className="relative">
+                  <div
+                    className="absolute inset-0 bg-[#2dd4bf]/30 rounded-full opacity-20"
+                    style={{
+                      animation: 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite',
+                    }}
+                  ></div>
+                  <div className="w-12 h-12 rounded-full bg-[#2dd4bf] flex items-center justify-center shadow-[0_0_40px_rgba(45,212,191,0.3)] hover:shadow-[0_0_60px_rgba(45,212,191,0.5)] border-2 border-white/20 relative overflow-hidden z-10">
+                    <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent z-0 transition-transform duration-1000"></div>
+                    <span
+                      className="material-symbols-outlined text-black z-10 text-2xl"
+                      style={{
+                        fontVariationSettings: "'FILL' 1, 'wght' 700",
+                      }}
+                    >
+                      shield
+                    </span>
+                  </div>
+                </div>
+                <span className="text-[9px] font-bold text-[#2dd4bf] tracking-widest uppercase drop-shadow-lg text-center leading-tight">
+                  Divert to AI Protection
+                </span>
+              </button>
+            )}
 
             {/* ACCEPT Button */}
             <button
@@ -894,6 +922,8 @@ export default function DashboardPage() {
   const analysisTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastProcessedLengthRef = useRef<number>(0);
   const autoTerminationCheckRef = useRef<NodeJS.Timeout | null>(null);
+  const diversionTriggeredRef = useRef<boolean>(false);
+  const [callStatus, setCallStatus] = useState<'active' | 'blocked' | 'ended'>('active');
   // Single shared ringtone audio instance (HTML5 Audio API)
   const ringtoneAudioRef = useRef<HTMLAudioElement | null>(null);
   const [incomingCall, setIncomingCall] = useState<{
@@ -910,6 +940,7 @@ export default function DashboardPage() {
   const MIN_DIALOGUES_FOR_ANALYSIS = 10; // Minimum dialogues before comprehensive analysis
   const [blocklist, setBlocklist] = useState<string[]>([]);
   const [voicePreference, setVoicePreference] = useState<'default' | 'female' | 'male'>('default');
+  const [divertCallPopupEnabled, setDivertCallPopupEnabled] = useState(true);
   const [calls, setCalls] = useState<Call[]>([
     {
       id: '1',
@@ -1006,6 +1037,26 @@ export default function DashboardPage() {
         setVoicePreference(savedVoice);
       }
       
+      // Load divert call popup preference from localStorage
+      const savedDivertCallPopup = localStorage.getItem('divertCallPopupEnabled');
+      if (savedDivertCallPopup !== null) {
+        setDivertCallPopupEnabled(savedDivertCallPopup === 'true');
+      }
+
+      // Load calls from localStorage
+      const savedCalls = localStorage.getItem('calls');
+      if (savedCalls) {
+        try {
+          const parsedCalls = JSON.parse(savedCalls).map((call: any) => ({
+            ...call,
+            timestamp: new Date(call.timestamp),
+          }));
+          setCalls(parsedCalls);
+        } catch (error) {
+          console.error('[Dashboard] Error parsing saved calls:', error);
+        }
+      }
+      
       const handleVoicePreferenceChange = (event: CustomEvent) => {
         const newVoice = event.detail.voice as 'default' | 'female' | 'male';
         console.log('[Dashboard] Voice preference changed to:', newVoice);
@@ -1018,13 +1069,33 @@ export default function DashboardPage() {
         }
       };
       
+      const handleDivertCallPopupChange = () => {
+        const savedDivertCallPopup = localStorage.getItem('divertCallPopupEnabled');
+        if (savedDivertCallPopup !== null) {
+          setDivertCallPopupEnabled(savedDivertCallPopup === 'true');
+        }
+      };
+      
       window.addEventListener('voicePreferenceChanged', handleVoicePreferenceChange as EventListener);
+      window.addEventListener('divertCallPopupChanged', handleDivertCallPopupChange);
       
       return () => {
         window.removeEventListener('voicePreferenceChanged', handleVoicePreferenceChange as EventListener);
+        window.removeEventListener('divertCallPopupChanged', handleDivertCallPopupChange);
       };
     }
   }, [router]);
+
+  // Save calls to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window !== 'undefined' && calls.length > 0) {
+      try {
+        localStorage.setItem('calls', JSON.stringify(calls));
+      } catch (error) {
+        console.error('[Dashboard] Error saving calls to localStorage:', error);
+      }
+    }
+  }, [calls]);
 
   // Simulate active call monitoring (commented out - only for testing)
   // useEffect(() => {
@@ -1257,15 +1328,30 @@ export default function DashboardPage() {
         const duration = currentActiveCall.startTime
           ? Math.floor((Date.now() - currentActiveCall.startTime.getTime()) / 1000)
           : 0;
-        const isScam = currentActiveCall.risk > 40;
+        
+        // Get threshold based on sensitivity
+        const sensitivityLevel = getDiversionSensitivity();
+        const SCAM_THRESHOLDS = {
+          LOW: 60,
+          STANDARD: 40,
+          HIGH: 30,
+        };
+        const threshold = SCAM_THRESHOLDS[sensitivityLevel] || SCAM_THRESHOLDS.STANDARD;
+        const isScam = currentActiveCall.risk > threshold;
 
+        // Determine call status - check if diversion was triggered
+        const wasBlocked = diversionTriggeredRef.current || callStatus === 'blocked';
+        const finalStatus: Call['status'] = wasBlocked ? 'blocked' : (isScam ? 'scam' : 'safe');
+        
         const newCall: Call = {
           id: Date.now().toString(),
           number: currentActiveCall.number,
           timestamp: currentActiveCall.startTime || new Date(),
           duration,
-          status: isScam ? 'scam' : 'safe',
+          status: finalStatus,
           risk: currentActiveCall.risk,
+          diversionTriggered: wasBlocked,
+          diversionTimestamp: wasBlocked ? new Date() : undefined,
         };
 
         setCalls((prev) => [newCall, ...prev]);
@@ -1294,6 +1380,8 @@ export default function DashboardPage() {
       setVisibleTranscript([]);
       setRealtimeScamScore(0);
       setRealtimeKeywords([]);
+      diversionTriggeredRef.current = false;
+      setCallStatus('ended');
       if (transcriptIntervalRef.current) {
         clearInterval(transcriptIntervalRef.current);
         transcriptIntervalRef.current = null;
@@ -1484,6 +1572,9 @@ export default function DashboardPage() {
         dialogueCount: `${currentDialogueCount}/${MIN_DIALOGUES_FOR_ANALYSIS}`,
       });
 
+      // Get current sensitivity level
+      const sensitivityLevel = getDiversionSensitivity();
+      
       const response = await fetch('/api/analyze-realtime', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1491,6 +1582,7 @@ export default function DashboardPage() {
           callerText: text,
           conversationContext,
           dialogueCount: currentDialogueCount, // Pass dialogue count to API
+          sensitivityLevel, // Pass sensitivity level to API
         }),
       });
 
@@ -1499,10 +1591,20 @@ export default function DashboardPage() {
         const scamScore = analysis.scamScore || 0;
         const keywords = analysis.keywords || [];
 
+        // Get threshold based on sensitivity
+        const SCAM_THRESHOLDS = {
+          LOW: 60,
+          STANDARD: 40,
+          HIGH: 30,
+        };
+        const threshold = SCAM_THRESHOLDS[sensitivityLevel] || SCAM_THRESHOLDS.STANDARD;
+        
         console.log('[Dashboard] ✅ Scam analysis result:', {
           scamScore,
           keywords,
-          isScam: scamScore > 40,
+          isScam: scamScore > threshold,
+          threshold,
+          sensitivityLevel,
           dialogueCount: `${currentDialogueCount}/${MIN_DIALOGUES_FOR_ANALYSIS}`,
         });
 
@@ -1516,20 +1618,20 @@ export default function DashboardPage() {
           console.log(`[Dashboard] Final scam score: ${scamScore}`);
           console.log(`[Dashboard] Detected keywords: ${keywords.length > 0 ? keywords.join(', ') : 'None'}`);
           
-          // Make final decision after sufficient dialogue (threshold: >40% = scam)
-          if (scamScore > 40 || keywords.length > 0) {
-            console.log(`[Dashboard] 🚨 SCAM DETECTED: Score ${scamScore}% (threshold: >40%), Keywords: ${keywords.join(', ')}`);
+          // Make final decision after sufficient dialogue (threshold based on sensitivity)
+          if (scamScore > threshold || keywords.length > 0) {
+            console.log(`[Dashboard] 🚨 SCAM DETECTED: Score ${scamScore}% (threshold: >${threshold}%, sensitivity: ${sensitivityLevel}), Keywords: ${keywords.join(', ')}`);
             console.log(`[Dashboard] ❌ Call will be marked as SCAM and added to blocklist`);
             
             // Add to blocklist immediately if scam detected during conversation
-            if (activeCall && scamScore > 40) {
+            if (activeCall && scamScore > threshold) {
               setBlocklist((prev) =>
                 prev.includes(activeCall.number) ? prev : [activeCall.number, ...prev]
               );
               console.log(`[Dashboard] 🚫 Added ${activeCall.number} to blocklist (scam risk: ${scamScore}%)`);
             }
-          } else if (scamScore <= 40 && keywords.length === 0) {
-            console.log(`[Dashboard] ✅ SAFE CALL: No scam keywords, low score (${scamScore}%)`);
+          } else if (scamScore <= threshold && keywords.length === 0) {
+            console.log(`[Dashboard] ✅ SAFE CALL: No scam keywords, low score (${scamScore}%, threshold: ${threshold}%)`);
             console.log(`[Dashboard] 📞 Call will be redialed to user after conversation ends`);
           } else {
             console.log(`[Dashboard] ⚠️ UNCERTAIN: Score ${scamScore}%, needs review`);
@@ -1551,6 +1653,52 @@ export default function DashboardPage() {
             ].slice(0, 10), // Max 10 keywords
           };
         });
+
+        // CRITICAL: Trigger scam warning message when risk >= 70
+        // This sends a normal agent message that will be recorded and transcribed
+        const SCAM_WARNING_THRESHOLD = 70;
+        if (scamScore >= SCAM_WARNING_THRESHOLD && !diversionTriggeredRef.current && aiVoiceClientRef.current) {
+          console.log(`[Dashboard] 🚨🚨🚨 SCAM WARNING TRIGGERED: Risk ${scamScore}% >= ${SCAM_WARNING_THRESHOLD}% 🚨🚨🚨`);
+          console.log('[Dashboard] Sending warning message through agent and terminating call...');
+          
+          diversionTriggeredRef.current = true;
+          setCallStatus('blocked');
+          
+          // Log warning event
+          const warningTimestamp = new Date();
+          console.log('[Dashboard] 📝 Scam warning event logged:', {
+            timestamp: warningTimestamp.toISOString(),
+            callerNumber: activeCall.number,
+            riskScore: scamScore,
+            keywords: keywords.join(', '),
+          });
+
+          // Send warning message through agent (will be recorded and transcribed)
+          aiVoiceClientRef.current.sendScamWarningAndTerminate()
+            .then(() => {
+              console.log('[Dashboard] ✅ Warning message sent, call terminated');
+              
+              // Update active call with warning info
+              setActiveCall((prev) => {
+                if (!prev) return prev;
+                return {
+                  ...prev,
+                  risk: scamScore,
+                  keywords: [...new Set([...prev.keywords, ...keywords])].slice(0, 10),
+                };
+              });
+
+              // End call after warning message completes
+              setTimeout(() => {
+                endCall('auto-terminated');
+              }, 1000); // Brief delay to ensure cleanup completes
+            })
+            .catch((error) => {
+              console.error('[Dashboard] ❌ Error sending warning message:', error);
+              // Still terminate the call even if message sending fails
+              endCall('auto-terminated');
+            });
+        }
       } else {
         const errorData = await response.json().catch(() => ({}));
         console.error('[Dashboard] Analysis API error:', response.status, errorData);
@@ -1563,6 +1711,9 @@ export default function DashboardPage() {
   const handleDivertToAI = () => {
     // Reset dialogue count when starting a new conversation
     dialogueCountRef.current = 0;
+    // Reset diversion trigger flag
+    diversionTriggeredRef.current = false;
+    setCallStatus('active');
     
     if (incomingCall) {
       // If this is already a safe call being re-rung, don't divert again
@@ -1820,6 +1971,8 @@ export default function DashboardPage() {
         return 'phone_missed';
       case 'safe':
         return 'call_received';
+      case 'blocked':
+        return 'block';
       default:
         return 'call_missed';
     }
@@ -1843,6 +1996,15 @@ export default function DashboardPage() {
               verified
             </span>
             Safe
+          </span>
+        );
+      case 'blocked':
+        return (
+          <span className="px-2 py-0.5 bg-orange-500/10 border border-orange-500/20 text-orange-500 text-[10px] font-bold rounded flex items-center gap-1">
+            <span className="material-symbols-outlined text-[10px]">
+              block
+            </span>
+            Blocked – Security Risk
           </span>
         );
       default:
@@ -1869,6 +2031,7 @@ export default function DashboardPage() {
       onDecline={handleDeclineCall}
       onDivertToAI={handleDivertToAI}
       onAccept={handleAcceptCall}
+      showDivertButton={divertCallPopupEnabled}
     />
   ) : activeCall && isFullPageMonitoring ? (
     <FullPageMonitoringContent
@@ -1889,11 +2052,13 @@ export default function DashboardPage() {
       blocklist={blocklist}
       realtimeScamScore={realtimeScamScore}
       realtimeKeywords={realtimeKeywords}
+      callStatus={callStatus}
       onEndCall={endCall}
       onViewFullMonitoring={() => setIsFullPageMonitoring(true)}
       getCallIcon={getCallIcon}
       getCallStatusBadge={getCallStatusBadge}
       formatDuration={formatDuration}
+      router={router}
     />
   );
 
