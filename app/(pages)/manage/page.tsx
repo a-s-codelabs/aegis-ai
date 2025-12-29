@@ -31,6 +31,7 @@ export default function ManagePage() {
   const [voiceStyleValue, setVoiceStyleValue] = useState(65); // 0-33: Direct, 34-66: Neutral, 67-100: Empathetic
   const [selectedVoiceAgent, setSelectedVoiceAgent] =
     useState<VoicePreference>('default');
+  const [currentDiversionMessage, setCurrentDiversionMessage] = useState('Standard Anti-Scam Warning');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -91,6 +92,16 @@ export default function ManagePage() {
           setVoiceStyleValue(value);
         }
       }
+
+      // Load current diversion message name
+      const savedMessageId = localStorage.getItem('diversionMessageId') || 'standard';
+      const messageNames: Record<string, string> = {
+        standard: 'Standard Anti-Scam Warning',
+        firm: 'Firm Security Notice',
+        brief: 'Brief Security Alert',
+        polite: 'Polite Security Notice',
+      };
+      setCurrentDiversionMessage(messageNames[savedMessageId] || 'Standard Anti-Scam Warning');
 
       // Load divert call popup preference from localStorage (this controls both toggles)
       const savedDivertCallPopup = localStorage.getItem('divertCallPopupEnabled');
@@ -159,11 +170,25 @@ export default function ManagePage() {
       // Listen for custom events (from same tab)
       window.addEventListener('profileUpdated', handleStorageChange);
       window.addEventListener('divertCallPopupChanged', handleDivertCallPopupChange);
+      
+      const handleDiversionMessageChange = () => {
+        const savedMessageId = localStorage.getItem('diversionMessageId') || 'standard';
+        const messageNames: Record<string, string> = {
+          standard: 'Standard Anti-Scam Warning',
+          firm: 'Firm Security Notice',
+          brief: 'Brief Security Alert',
+          polite: 'Polite Security Notice',
+        };
+        setCurrentDiversionMessage(messageNames[savedMessageId] || 'Standard Anti-Scam Warning');
+      };
+      
+      window.addEventListener('diversionMessageChanged', handleDiversionMessageChange);
 
       return () => {
         window.removeEventListener('storage', handleStorageChange);
         window.removeEventListener('profileUpdated', handleStorageChange);
         window.removeEventListener('divertCallPopupChanged', handleDivertCallPopupChange);
+        window.removeEventListener('diversionMessageChanged', handleDiversionMessageChange);
       };
     }
   }, []);
@@ -445,7 +470,10 @@ export default function ManagePage() {
 
           {/* Custom Diversion Message */}
           <div className="rounded-xl border border-white/5 bg-[#131b26] p-1 shadow-lg mb-4">
-            <button className="flex w-full items-center justify-between p-4 hover:bg-white/5 rounded-lg transition-colors group">
+            <button 
+              onClick={() => router.push('/manage/diversion-messages')}
+              className="flex w-full items-center justify-between p-4 hover:bg-white/5 rounded-lg transition-colors group"
+            >
               <div className="flex items-center gap-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1e2936] text-[#26d9bb] border border-white/5">
                   <span className="material-symbols-outlined">graphic_eq</span>
@@ -455,7 +483,7 @@ export default function ManagePage() {
                     Custom Diversion Message
                   </p>
                   <p className="text-xs text-[#94a3b8] mt-0.5">
-                    Current: "Standard Anti-Scam Warning"
+                    Current: "{currentDiversionMessage}"
                   </p>
                 </div>
               </div>

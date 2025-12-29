@@ -969,6 +969,139 @@ export class ElevenLabsClient {
   }
 
   /**
+   * Send scam warning message through agent and terminate call
+   * Used when scam risk exceeds threshold (>=70)
+   * This sends a normal agent message that will be recorded and transcribed
+   */
+  async sendScamWarningAndTerminate(): Promise<void> {
+    console.log('[ElevenLabsClient] 🚨 Sending scam warning message through agent...');
+    
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      console.error('[ElevenLabsClient] WebSocket not open, cannot send warning message');
+      this.cleanup();
+      return;
+    }
+
+    try {
+      // Get warning message text (exact message as per requirements)
+      const warningMessage = "This call appears suspicious. For your safety, I cannot continue this conversation. Please contact official support channels. Goodbye.";
+
+      // Stop microphone streaming immediately (no more caller input)
+      if (this.audioProcessor) {
+        try {
+          this.audioProcessor.disconnect();
+        } catch (error) {
+          // Ignore disconnect errors
+        }
+        this.audioProcessor = null;
+      }
+
+      if (this.audioSource) {
+        try {
+          this.audioSource.disconnect();
+        } catch (error) {
+          // Ignore disconnect errors
+        }
+        this.audioSource = null;
+      }
+
+      if (this.mediaStream) {
+        this.mediaStream.getTracks().forEach((track) => track.stop());
+        this.mediaStream = null;
+      }
+
+      // Send text message to agent via WebSocket
+      // For ElevenLabs ConvAI, we send the message as a text input that the agent will process and speak
+      // The agent will use its configured voice and speak the message
+      const messagePayload = {
+        type: 'text',
+        text: warningMessage,
+        playback_speed: 0.6, // Fixed playback speed for all voices
+      };
+
+      console.log('[ElevenLabsClient] 📤 Sending warning message to agent:', warningMessage);
+      console.log('[ElevenLabsClient] 🎤 Agent will speak this message using selected voice');
+      this.ws.send(JSON.stringify(messagePayload));
+
+      // Add message to transcript immediately
+      this.options.onAgentResponse?.(warningMessage);
+
+      // Wait for audio playback to complete
+      // We'll listen for the agent_response_event to know when it's done speaking
+      const playbackComplete = new Promise<void>((resolve) => {
+        const timeout = setTimeout(() => {
+          console.log('[ElevenLabsClient] ⏱️ Playback timeout, proceeding with termination');
+          resolve();
+        }, 10000); // 10 second max wait
+
+        const originalOnMessage = this.ws?.onmessage;
+        if (this.ws) {
+          const checkComplete = (event: MessageEvent) => {
+            try {
+              if (typeof event.data === 'string') {
+                const eventData = JSON.parse(event.data);
+                // Check if agent finished speaking (audio_output complete or agent_response_event)
+                if (
+                  eventData.type === 'agent_response_event' ||
+                  (eventData.type === 'audio' && eventData.audio_event?.is_final)
+                ) {
+                  clearTimeout(timeout);
+                  if (this.ws) {
+                    this.ws.onmessage = originalOnMessage || null;
+                  }
+                  resolve();
+                }
+              }
+            } catch (error) {
+              // Continue waiting
+            }
+          };
+
+          // Temporarily override message handler
+          this.ws.onmessage = checkComplete as any;
+        } else {
+          clearTimeout(timeout);
+          resolve();
+        }
+      });
+
+      await playbackComplete;
+      console.log('[ElevenLabsClient] ✅ Warning message playback complete, terminating call...');
+
+      // Terminate call by closing WebSocket
+      if (this.ws) {
+        try {
+          // Send conversation end event
+          const endPayload = {
+            type: 'conversation_end_event',
+          };
+          this.ws.send(JSON.stringify(endPayload));
+          
+          // Close WebSocket after a brief delay
+          setTimeout(() => {
+            if (this.ws) {
+              this.ws.close();
+            }
+          }, 500);
+        } catch (error) {
+          console.error('[ElevenLabsClient] Error sending end event:', error);
+          if (this.ws) {
+            this.ws.close();
+          }
+        }
+      }
+
+      // Complete cleanup
+      this.cleanup();
+    } catch (error) {
+      console.error('[ElevenLabsClient] Error sending warning message:', error);
+      // Still terminate the call even if message sending fails
+      this.cleanup();
+      throw error;
+    }
+  }
+
+  /**
    * Stop the ConvAI session and clean up all resources.
    */
   stop() {

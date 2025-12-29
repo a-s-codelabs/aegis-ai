@@ -27,8 +27,10 @@ interface Call {
   number: string;
   timestamp: Date;
   duration: number;
-  status: 'scam' | 'safe' | 'unknown';
+  status: 'scam' | 'safe' | 'unknown' | 'blocked';
   risk?: number;
+  diversionTriggered?: boolean;
+  diversionTimestamp?: Date;
 }
 
 // Dashboard Content Component (to be rendered inside iPhone)
@@ -50,6 +52,7 @@ interface DashboardContentProps {
   blocklist: string[];
   realtimeScamScore: number;
   realtimeKeywords: string[];
+  callStatus: 'active' | 'blocked' | 'ended';
   onEndCall: () => void;
   onViewFullMonitoring: () => void;
   getCallIcon: (status: Call['status']) => string;
@@ -96,6 +99,7 @@ function DashboardContent({
   blocklist,
   realtimeScamScore,
   realtimeKeywords,
+  callStatus,
   onEndCall,
   onViewFullMonitoring,
   getCallIcon,
@@ -112,7 +116,12 @@ function DashboardContent({
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h2 className="text-white font-semibold text-base flex items-center gap-2">
-                  {activeCall.risk < 20 ? (
+                  {callStatus === 'blocked' ? (
+                    <span className="relative flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
+                    </span>
+                  ) : activeCall.risk < 20 ? (
                     <span className="relative flex h-3 w-3">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
@@ -123,7 +132,7 @@ function DashboardContent({
                       <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
                     </span>
                   )}
-                  Active Call Monitoring
+                  {callStatus === 'blocked' ? 'Blocked – Security Risk' : 'Active Call Monitoring'}
                 </h2>
                 <p className="text-slate-400 text-xs mt-1">
                   {activeCall.number}
@@ -341,6 +350,8 @@ function DashboardContent({
                         ? 'text-red-500'
                         : call.status === 'safe'
                         ? 'text-green-500'
+                        : call.status === 'blocked'
+                        ? 'text-orange-500'
                         : 'text-slate-400'
                     }`}
                   >
@@ -374,6 +385,8 @@ function DashboardContent({
                             ? 'text-red-500'
                             : call.status === 'safe'
                             ? 'text-green-500'
+                            : call.status === 'blocked'
+                            ? 'text-orange-500'
                             : 'text-slate-400'
                         }`}
                       >
@@ -909,6 +922,8 @@ export default function DashboardPage() {
   const analysisTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastProcessedLengthRef = useRef<number>(0);
   const autoTerminationCheckRef = useRef<NodeJS.Timeout | null>(null);
+  const diversionTriggeredRef = useRef<boolean>(false);
+  const [callStatus, setCallStatus] = useState<'active' | 'blocked' | 'ended'>('active');
   // Single shared ringtone audio instance (HTML5 Audio API)
   const ringtoneAudioRef = useRef<HTMLAudioElement | null>(null);
   const [incomingCall, setIncomingCall] = useState<{
@@ -1324,13 +1339,19 @@ export default function DashboardPage() {
         const threshold = SCAM_THRESHOLDS[sensitivityLevel] || SCAM_THRESHOLDS.STANDARD;
         const isScam = currentActiveCall.risk > threshold;
 
+        // Determine call status - check if diversion was triggered
+        const wasBlocked = diversionTriggeredRef.current || callStatus === 'blocked';
+        const finalStatus: Call['status'] = wasBlocked ? 'blocked' : (isScam ? 'scam' : 'safe');
+        
         const newCall: Call = {
           id: Date.now().toString(),
           number: currentActiveCall.number,
           timestamp: currentActiveCall.startTime || new Date(),
           duration,
-          status: isScam ? 'scam' : 'safe',
+          status: finalStatus,
           risk: currentActiveCall.risk,
+          diversionTriggered: wasBlocked,
+          diversionTimestamp: wasBlocked ? new Date() : undefined,
         };
 
         setCalls((prev) => [newCall, ...prev]);
@@ -1359,6 +1380,8 @@ export default function DashboardPage() {
       setVisibleTranscript([]);
       setRealtimeScamScore(0);
       setRealtimeKeywords([]);
+      diversionTriggeredRef.current = false;
+      setCallStatus('ended');
       if (transcriptIntervalRef.current) {
         clearInterval(transcriptIntervalRef.current);
         transcriptIntervalRef.current = null;
@@ -1630,6 +1653,52 @@ export default function DashboardPage() {
             ].slice(0, 10), // Max 10 keywords
           };
         });
+
+        // CRITICAL: Trigger scam warning message when risk >= 70
+        // This sends a normal agent message that will be recorded and transcribed
+        const SCAM_WARNING_THRESHOLD = 70;
+        if (scamScore >= SCAM_WARNING_THRESHOLD && !diversionTriggeredRef.current && aiVoiceClientRef.current) {
+          console.log(`[Dashboard] 🚨🚨🚨 SCAM WARNING TRIGGERED: Risk ${scamScore}% >= ${SCAM_WARNING_THRESHOLD}% 🚨🚨🚨`);
+          console.log('[Dashboard] Sending warning message through agent and terminating call...');
+          
+          diversionTriggeredRef.current = true;
+          setCallStatus('blocked');
+          
+          // Log warning event
+          const warningTimestamp = new Date();
+          console.log('[Dashboard] 📝 Scam warning event logged:', {
+            timestamp: warningTimestamp.toISOString(),
+            callerNumber: activeCall.number,
+            riskScore: scamScore,
+            keywords: keywords.join(', '),
+          });
+
+          // Send warning message through agent (will be recorded and transcribed)
+          aiVoiceClientRef.current.sendScamWarningAndTerminate()
+            .then(() => {
+              console.log('[Dashboard] ✅ Warning message sent, call terminated');
+              
+              // Update active call with warning info
+              setActiveCall((prev) => {
+                if (!prev) return prev;
+                return {
+                  ...prev,
+                  risk: scamScore,
+                  keywords: [...new Set([...prev.keywords, ...keywords])].slice(0, 10),
+                };
+              });
+
+              // End call after warning message completes
+              setTimeout(() => {
+                endCall('auto-terminated');
+              }, 1000); // Brief delay to ensure cleanup completes
+            })
+            .catch((error) => {
+              console.error('[Dashboard] ❌ Error sending warning message:', error);
+              // Still terminate the call even if message sending fails
+              endCall('auto-terminated');
+            });
+        }
       } else {
         const errorData = await response.json().catch(() => ({}));
         console.error('[Dashboard] Analysis API error:', response.status, errorData);
@@ -1642,6 +1711,9 @@ export default function DashboardPage() {
   const handleDivertToAI = () => {
     // Reset dialogue count when starting a new conversation
     dialogueCountRef.current = 0;
+    // Reset diversion trigger flag
+    diversionTriggeredRef.current = false;
+    setCallStatus('active');
     
     if (incomingCall) {
       // If this is already a safe call being re-rung, don't divert again
@@ -1899,6 +1971,8 @@ export default function DashboardPage() {
         return 'phone_missed';
       case 'safe':
         return 'call_received';
+      case 'blocked':
+        return 'block';
       default:
         return 'call_missed';
     }
@@ -1922,6 +1996,15 @@ export default function DashboardPage() {
               verified
             </span>
             Safe
+          </span>
+        );
+      case 'blocked':
+        return (
+          <span className="px-2 py-0.5 bg-orange-500/10 border border-orange-500/20 text-orange-500 text-[10px] font-bold rounded flex items-center gap-1">
+            <span className="material-symbols-outlined text-[10px]">
+              block
+            </span>
+            Blocked – Security Risk
           </span>
         );
       default:
@@ -1969,6 +2052,7 @@ export default function DashboardPage() {
       blocklist={blocklist}
       realtimeScamScore={realtimeScamScore}
       realtimeKeywords={realtimeKeywords}
+      callStatus={callStatus}
       onEndCall={endCall}
       onViewFullMonitoring={() => setIsFullPageMonitoring(true)}
       getCallIcon={getCallIcon}
