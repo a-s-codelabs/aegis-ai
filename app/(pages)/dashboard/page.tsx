@@ -13,6 +13,7 @@ import {
 } from '@/lib/utils/call-conversations';
 import { ElevenLabsClient } from '@/lib/utils/elevenlabs-client';
 import { VoiceSelector, getVoicePreference, getDiversionSensitivity } from '@/components/voice-selector';
+import { seedDummyCallLogs } from '@/lib/utils/contacts';
 
 interface UserSession {
   userId: string;
@@ -1046,6 +1047,9 @@ export default function DashboardPage() {
         setDivertCallPopupEnabled(savedDivertCallPopup === 'true');
       }
 
+      // Seed dummy call logs if empty
+      seedDummyCallLogs();
+
       // Load calls from localStorage
       const savedCalls = localStorage.getItem('calls');
       if (savedCalls) {
@@ -1058,6 +1062,22 @@ export default function DashboardPage() {
         } catch (error) {
           console.error('[Dashboard] Error parsing saved calls:', error);
         }
+      } else {
+        // If no saved calls, reload after seeding
+        setTimeout(() => {
+          const savedCallsAfterSeed = localStorage.getItem('calls');
+          if (savedCallsAfterSeed) {
+            try {
+              const parsedCalls = JSON.parse(savedCallsAfterSeed).map((call: any) => ({
+                ...call,
+                timestamp: new Date(call.timestamp),
+              }));
+              setCalls(parsedCalls);
+            } catch (error) {
+              console.error('[Dashboard] Error parsing saved calls after seed:', error);
+            }
+          }
+        }, 100);
       }
       
       const handleVoicePreferenceChange = (event: CustomEvent) => {

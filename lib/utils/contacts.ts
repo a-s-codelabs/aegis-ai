@@ -111,3 +111,236 @@ export function findContactByPhoneNumber(phoneNumber: string): Contact | null {
 export function isNumberInContacts(phoneNumber: string): boolean {
   return findContactByPhoneNumber(phoneNumber) !== null;
 }
+
+/**
+ * Seeds dummy contacts if contacts list is empty
+ */
+export function seedDummyContacts(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const existingContacts = getContacts();
+  if (existingContacts.length > 0) {
+    // Contacts already exist, don't seed
+    return;
+  }
+
+  const dummyContacts: Contact[] = [
+    { id: '1', name: 'John Smith', phoneNumber: '+15551234567' },
+    { id: '2', name: 'Sarah Johnson', phoneNumber: '+15559876543' },
+    { id: '3', name: 'Michael Chen', phoneNumber: '+15555555555' },
+    { id: '4', name: 'Emily Davis', phoneNumber: '+15551111111' },
+    { id: '5', name: 'David Wilson', phoneNumber: '+15552222222' },
+    { id: '6', name: 'Lisa Anderson', phoneNumber: '+15553333333' },
+    { id: '7', name: 'Robert Taylor', phoneNumber: '+15554444444' },
+    { id: '8', name: 'Jennifer Martinez', phoneNumber: '+15556666666' },
+  ];
+
+  saveContacts(dummyContacts);
+  console.log('[Contacts] Seeded dummy contacts');
+}
+
+/**
+ * Seeds dummy blocklist entries if blocklist is empty or missing entries
+ */
+export function seedDummyBlocklist(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const BLOCKLIST_STORAGE_KEY = 'blocklist';
+  
+  try {
+    const dummyBlocklist: string[] = [
+      '+15557777777',
+      '+15558888888',
+      '+15559999999',
+      '+15550000000',
+      '+15551234560',
+      '+15559876540',
+    ];
+
+    const existingBlocklist = localStorage.getItem(BLOCKLIST_STORAGE_KEY);
+    let currentBlocklist: string[] = [];
+    const wasEmpty = !existingBlocklist || existingBlocklist === '[]' || existingBlocklist.trim() === '';
+    
+    if (existingBlocklist) {
+      try {
+        const parsed = JSON.parse(existingBlocklist);
+        if (Array.isArray(parsed)) {
+          currentBlocklist = parsed;
+        }
+      } catch (parseError) {
+        console.error('[Blocklist] Error parsing existing blocklist:', parseError);
+      }
+    }
+
+    // Merge dummy entries with existing ones, avoiding duplicates
+    const normalizedExisting = currentBlocklist.map(num => normalizePhoneNumber(num));
+    
+    // Add dummy entries that don't already exist
+    let hasNewEntries = false;
+    dummyBlocklist.forEach(dummyNum => {
+      const normalizedDummyNum = normalizePhoneNumber(dummyNum);
+      if (!normalizedExisting.includes(normalizedDummyNum)) {
+        currentBlocklist.push(dummyNum);
+        hasNewEntries = true;
+      }
+    });
+
+    // Always update if we added new entries, or if blocklist was empty initially
+    if (hasNewEntries || wasEmpty) {
+      localStorage.setItem(BLOCKLIST_STORAGE_KEY, JSON.stringify(currentBlocklist));
+      console.log('[Blocklist] Seeded dummy blocklist entries. Total entries:', currentBlocklist.length);
+      
+      // Dispatch event to notify other components
+      window.dispatchEvent(new CustomEvent('blocklistUpdated'));
+    }
+  } catch (error) {
+    console.error('[Blocklist] Error seeding dummy blocklist:', error);
+  }
+}
+
+/**
+ * Seeds dummy call logs if call logs are empty or missing entries
+ */
+export function seedDummyCallLogs(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const CALLS_STORAGE_KEY = 'calls';
+  const CALL_LOGS_STORAGE_KEY = 'callLogs';
+  
+  try {
+    // Create dummy call logs with varied data
+    const now = new Date();
+    const dummyCalls = [
+      {
+        id: '1',
+        number: '+1 (184) 768-4419',
+        timestamp: new Date(now.getTime() - 2 * 60 * 60 * 1000), // 2 hours ago
+        duration: 0,
+        status: 'scam' as const,
+        risk: 95,
+      },
+      {
+        id: '2',
+        number: '+1 (724) 719-4042',
+        timestamp: new Date(now.getTime() - 3 * 60 * 60 * 1000), // 3 hours ago
+        duration: 252,
+        status: 'safe' as const,
+        risk: 5,
+      },
+      {
+        id: '3',
+        number: '+1 (202) 555-0199',
+        timestamp: new Date(now.getTime() - 24 * 60 * 60 * 1000), // 1 day ago
+        duration: 0,
+        status: 'unknown' as const,
+      },
+      {
+        id: '4',
+        number: '+1 (555) 123-4567',
+        timestamp: new Date(now.getTime() - 4 * 60 * 60 * 1000), // 4 hours ago
+        duration: 180,
+        status: 'scam' as const,
+        risk: 88,
+      },
+      {
+        id: '5',
+        number: '+1 (555) 987-6543',
+        timestamp: new Date(now.getTime() - 5 * 60 * 60 * 1000), // 5 hours ago
+        duration: 420,
+        status: 'safe' as const,
+        risk: 12,
+      },
+      {
+        id: '6',
+        number: '+1 (555) 456-7890',
+        timestamp: new Date(now.getTime() - 6 * 60 * 60 * 1000), // 6 hours ago
+        duration: 95,
+        status: 'scam' as const,
+        risk: 92,
+      },
+    ];
+
+    // Check existing calls
+    const existingCalls = localStorage.getItem(CALLS_STORAGE_KEY);
+    let currentCalls: any[] = [];
+    const wasEmpty = !existingCalls || existingCalls === '[]' || existingCalls.trim() === '';
+    
+    if (existingCalls) {
+      try {
+        const parsed = JSON.parse(existingCalls);
+        if (Array.isArray(parsed)) {
+          currentCalls = parsed;
+        }
+      } catch (parseError) {
+        console.error('[CallLogs] Error parsing existing calls:', parseError);
+      }
+    }
+
+    // Merge dummy calls with existing ones, avoiding duplicates by id
+    const existingIds = new Set(currentCalls.map((call: any) => call.id));
+    let hasNewEntries = false;
+    
+    dummyCalls.forEach((dummyCall) => {
+      if (!existingIds.has(dummyCall.id)) {
+        currentCalls.push(dummyCall);
+        hasNewEntries = true;
+      }
+    });
+
+    // Only update if we added new entries or if calls was empty
+    if (hasNewEntries || wasEmpty) {
+      localStorage.setItem(CALLS_STORAGE_KEY, JSON.stringify(currentCalls));
+      console.log('[CallLogs] Seeded dummy calls. Total entries:', currentCalls.length);
+    }
+
+    // Also seed callLogs (used by call logs page)
+    const existingCallLogs = localStorage.getItem(CALL_LOGS_STORAGE_KEY);
+    let currentCallLogs: any[] = [];
+    const callLogsWasEmpty = !existingCallLogs || existingCallLogs === '[]' || existingCallLogs.trim() === '';
+    
+    if (existingCallLogs) {
+      try {
+        const parsed = JSON.parse(existingCallLogs);
+        if (Array.isArray(parsed)) {
+          currentCallLogs = parsed;
+        }
+      } catch (parseError) {
+        console.error('[CallLogs] Error parsing existing callLogs:', parseError);
+      }
+    }
+
+    // Create call log entries from dummy calls
+    const dummyCallLogs = dummyCalls.map((call) => ({
+      ...call,
+      transcript: [],
+      keywords: call.status === 'scam' ? ['SUSPICIOUS', 'URGENT'] : [],
+    }));
+
+    const existingCallLogIds = new Set(currentCallLogs.map((log: any) => log.id));
+    let hasNewCallLogEntries = false;
+    
+    dummyCallLogs.forEach((dummyLog) => {
+      if (!existingCallLogIds.has(dummyLog.id)) {
+        currentCallLogs.push(dummyLog);
+        hasNewCallLogEntries = true;
+      }
+    });
+
+    // Only update if we added new entries or if callLogs was empty
+    if (hasNewCallLogEntries || callLogsWasEmpty) {
+      localStorage.setItem(CALL_LOGS_STORAGE_KEY, JSON.stringify(currentCallLogs));
+      console.log('[CallLogs] Seeded dummy callLogs. Total entries:', currentCallLogs.length);
+      
+      // Dispatch event to notify other components
+      window.dispatchEvent(new CustomEvent('callLogsUpdated'));
+    }
+  } catch (error) {
+    console.error('[CallLogs] Error seeding dummy call logs:', error);
+  }
+}
