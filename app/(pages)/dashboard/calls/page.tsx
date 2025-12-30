@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AppLayout } from '@/components/layout/app-layout';
 import { SplitLayoutWithIPhone } from '@/components/layout/split-layout-with-iphone';
@@ -178,7 +178,7 @@ function CallsContent({ calls, filterType }: { calls: Call[]; filterType: string
   );
 }
 
-export default function CallsPage() {
+function CallsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [userSession, setUserSession] = useState<UserSession | null>(null);
@@ -312,6 +312,18 @@ export default function CallsPage() {
       iphoneContent={iphoneContent}
       leftBasis="60%"
     />
+  );
+}
+
+export default function CallsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-slate-400">Loading...</div>
+      </div>
+    }>
+      <CallsPageContent />
+    </Suspense>
   );
 }
 
