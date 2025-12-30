@@ -53,17 +53,28 @@ export default function CallLogsPage() {
         if (storedLogs) {
           try {
             const logs = JSON.parse(storedLogs);
-            // Convert timestamp strings back to Date objects
-            const parsedLogs = logs.map((log: CallLog) => ({
-              ...log,
-              timestamp: new Date(log.timestamp),
-            }));
+            // Convert timestamp strings back to Date objects and sort by timestamp descending (newest first)
+            const parsedLogs = logs
+              .map((log: CallLog) => ({
+                ...log,
+                timestamp: new Date(log.timestamp),
+              }))
+              .sort((a: CallLog, b: CallLog) => {
+                const timeA = a.timestamp instanceof Date ? a.timestamp.getTime() : new Date(a.timestamp).getTime();
+                const timeB = b.timestamp instanceof Date ? b.timestamp.getTime() : new Date(b.timestamp).getTime();
+                return timeB - timeA; // Descending order (newest first)
+              });
             setCallLogs(parsedLogs);
+            return storedLogs;
           } catch (error) {
             console.error('[CallLogs] Error parsing call logs:', error);
+            setCallLogs([]);
+            return null;
           }
+        } else {
+          setCallLogs([]);
+          return null;
         }
-        return storedLogs;
       };
 
       // Load call logs initially
@@ -75,6 +86,7 @@ export default function CallLogsPage() {
       };
 
       const handleCallLogsUpdated = () => {
+        console.log('[CallLogs] Call logs updated event received');
         const logs = loadCallLogs();
         if (logs) {
           const parsedLogs = JSON.parse(logs);
@@ -86,47 +98,6 @@ export default function CallLogsPage() {
 
       window.addEventListener('storage', handleStorageChange);
       window.addEventListener('callLogsUpdated', handleCallLogsUpdated);
-
-      // Load demo call logs if no logs exist (for initial display)
-      if (!storedLogs || JSON.parse(storedLogs).length === 0) {
-        const demoLogs: CallLog[] = [
-          {
-            id: '1',
-            number: '+1 (184) 768-4419',
-            timestamp: new Date('2025-12-18T12:14:00'),
-            duration: 0,
-            status: 'scam',
-            risk: 95,
-            transcript: [
-              { speaker: 'AI Agent', text: 'Hello, how can I help you?' },
-              { speaker: 'Caller', text: 'Congratulations! You have won $1 million in our lottery!' },
-              { speaker: 'AI Agent', text: 'I don\'t remember entering any lottery. How did I win?' },
-              { speaker: 'Caller', text: 'You were automatically entered. To claim your prize, you need to pay a small processing fee of $500.' },
-              { speaker: 'AI Agent', text: 'I\'m not interested. This sounds like a scam.' },
-            ],
-            keywords: ['lottery', 'processing fee', 'prize'],
-            audioUrl: '/recordings/demo-call-1.wav', // Demo audio URL
-          },
-          {
-            id: '2',
-            number: '+1 (724) 719-4042',
-            timestamp: new Date('2025-12-18T11:32:00'),
-            duration: 252,
-            status: 'safe',
-            risk: 5,
-            transcript: [
-              { speaker: 'AI Agent', text: 'Hello, how can I help you?' },
-              { speaker: 'Caller', text: 'Hi, I\'m calling from ABC Company to schedule a delivery.' },
-              { speaker: 'AI Agent', text: 'What is the delivery for?' },
-              { speaker: 'Caller', text: 'It\'s a package that was ordered last week. We need to confirm the delivery address.' },
-              { speaker: 'AI Agent', text: 'I understand. Let me connect you with the right person.' },
-            ],
-            keywords: [],
-            audioUrl: '/recordings/demo-call-2.wav', // Demo audio URL
-          },
-        ];
-        setCallLogs(demoLogs);
-      }
 
       return () => {
         window.removeEventListener('storage', handleStorageChange);
