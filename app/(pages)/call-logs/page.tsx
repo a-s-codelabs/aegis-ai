@@ -22,6 +22,7 @@ interface CallLog {
   risk?: number;
   transcript?: TranscriptEntry[];
   keywords?: string[];
+  conversationId?: string; // Conversation ID for audio recording
   audioUrl?: string; // URL to recorded audio from ElevenLabs
 }
 
@@ -58,12 +59,28 @@ export default function CallLogsPage() {
               .map((log: CallLog) => ({
                 ...log,
                 timestamp: new Date(log.timestamp),
+                // Ensure audioUrl is preserved
+                audioUrl: log.audioUrl,
+                conversationId: log.conversationId,
               }))
               .sort((a: CallLog, b: CallLog) => {
                 const timeA = a.timestamp instanceof Date ? a.timestamp.getTime() : new Date(a.timestamp).getTime();
                 const timeB = b.timestamp instanceof Date ? b.timestamp.getTime() : new Date(b.timestamp).getTime();
                 return timeB - timeA; // Descending order (newest first)
               });
+            
+            // Log audio URLs for debugging
+            const withAudio = parsedLogs.filter((log: CallLog) => log.audioUrl);
+            if (withAudio.length > 0) {
+              console.log('[CallLogs] ✅ Found calls with audio:', withAudio.map((log: CallLog) => ({
+                id: log.id,
+                number: log.number,
+                audioUrl: log.audioUrl,
+              })));
+            } else {
+              console.log('[CallLogs] ⚠️ No calls with audioUrl found in localStorage');
+            }
+            
             setCallLogs(parsedLogs);
             return storedLogs;
           } catch (error) {
@@ -90,9 +107,26 @@ export default function CallLogsPage() {
         const logs = loadCallLogs();
         if (logs) {
           const parsedLogs = JSON.parse(logs);
-          console.log('[CallLogs] Call logs updated, audio URLs:', 
-            parsedLogs.map((log: CallLog) => ({ id: log.id, audioUrl: log.audioUrl }))
+          console.log('[CallLogs] Call logs updated, checking audio URLs:', 
+            parsedLogs.map((log: CallLog) => ({ 
+              id: log.id, 
+              conversationId: log.conversationId,
+              audioUrl: log.audioUrl,
+              hasAudioUrl: !!log.audioUrl,
+              number: log.number 
+            }))
           );
+          
+          // Log which calls have audio
+          const callsWithAudio = parsedLogs.filter((log: CallLog) => log.audioUrl);
+          const callsWithoutAudio = parsedLogs.filter((log: CallLog) => !log.audioUrl);
+          console.log('[CallLogs] 📊 Audio status:', {
+            total: parsedLogs.length,
+            withAudio: callsWithAudio.length,
+            withoutAudio: callsWithoutAudio.length,
+            withAudioIds: callsWithAudio.map((log: CallLog) => log.id),
+            withoutAudioIds: callsWithoutAudio.map((log: CallLog) => log.id),
+          });
         }
       };
 
@@ -279,32 +313,99 @@ export default function CallLogsPage() {
                             </span>
                             Recorded Audio
                           </h4>
-                          {call.audioUrl ? (
+                          {(() => {
+                            // Debug: Log audioUrl status when expanded
+                            console.log('[CallLogs] 🔍 Audio check for call:', {
+                              id: call.id,
+                              conversationId: call.conversationId,
+                              audioUrl: call.audioUrl,
+                              hasAudioUrl: !!call.audioUrl,
+                              audioUrlType: typeof call.audioUrl,
+                              audioUrlValue: call.audioUrl,
+                            });
+                            
+                            return call.audioUrl ? (() => {
+                            // Normalize audio URL - ensure it's a valid path
+                            const normalizeAudioUrl = (url: string): string => {
+                              // If it's already a full URL (http/https), use as-is
+                              if (url.startsWith('http://') || url.startsWith('https://')) {
+                                return url;
+                              }
+                              // If it starts with /, use as-is
+                              if (url.startsWith('/')) {
+                                return url;
+                              }
+                              // Otherwise, prepend / to make it a relative path
+                              return `/${url}`;
+                            };
+
+                            const normalizedUrl = normalizeAudioUrl(call.audioUrl);
+                            
+                            return (
+                              <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/30">
+                                <audio
+                                  controls
+                                  className="w-full h-10 rounded-md"
+                                  src={normalizedUrl}
+                                  preload="metadata"
+                                  onError={(e) => {
+                                    console.error('[CallLogs] Audio playback error:', normalizedUrl, e);
+                                    const target = e.target as HTMLAudioElement;
+                                    if (target.error) {
+                                      console.error('[CallLogs] Audio error details:', {
+                                        code: target.error.code,
+                                        message: target.error.message,
+                                      });
+                                    }
+                                  }}
+                                  onLoadStart={() => {
+                                    console.log('[CallLogs] Loading audio:', normalizedUrl);
+                                  }}
+                                  onLoadedMetadata={() => {
+                                    console.log('[CallLogs] Audio metadata loaded:', normalizedUrl);
+                                  }}
+                                  onCanPlay={() => {
+                                    console.log('[CallLogs] Audio ready to play:', normalizedUrl);
+                                  }}
+                                >
+                                  Your browser does not support the audio element.
+                                </audio>
+                                <div className="flex items-center justify-between mt-2">
+                                  <p className="text-slate-400 text-[10px] truncate flex-1 mr-2" title={normalizedUrl}>
+                                    {normalizedUrl}
+                                  </p>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      window.open(normalizedUrl, '_blank');
+                                    }}
+                                    className="text-[#26d9bb] hover:text-[#20c4a8] transition-colors flex items-center gap-1 text-[10px] shrink-0"
+                                    title="Open audio in new tab"
+                                  >
+                                    <span className="material-symbols-outlined text-xs">
+                                      open_in_new
+                                    </span>
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })() : (
                             <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/30">
-                              <audio
-                                controls
-                                className="w-full h-10"
-                                src={call.audioUrl}
-                                onError={(e) => {
-                                  console.error('[CallLogs] Audio playback error:', call.audioUrl, e);
-                                }}
-                                onLoadStart={() => {
-                                  console.log('[CallLogs] Loading audio:', call.audioUrl);
-                                }}
-                              >
-                                Your browser does not support the audio element.
-                              </audio>
-                              <p className="text-slate-400 text-[10px] mt-1">
-                                {call.audioUrl}
+                              <div className="flex items-center justify-center gap-2 py-2">
+                                <span className="material-symbols-outlined text-slate-500 text-sm">
+                                  volume_off
+                                </span>
+                                <p className="text-slate-400 text-xs text-center">
+                                  Audio recording not available for this call
+                                </p>
+                              </div>
+                              {/* Debug info */}
+                              <p className="text-slate-500 text-[10px] text-center mt-1">
+                                Call ID: {call.id} | Conversation ID: {call.conversationId || 'none'}
                               </p>
                             </div>
-                          ) : (
-                            <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/30">
-                              <p className="text-slate-400 text-xs text-center py-2">
-                                Audio recording not available for this call
-                              </p>
-                            </div>
-                          )}
+                          );
+                          })()}
                         </div>
                         
                         {/* Transcript Section */}

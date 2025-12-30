@@ -40,6 +40,11 @@ export interface ElevenLabsClientOptions {
    */
   voiceStyle?: 'Direct' | 'Neutral' | 'Empathetic';
   /**
+   * Conversation ID for audio recording (optional)
+   * If provided, audio chunks will be sent to backend for recording
+   */
+  conversationId?: string;
+  /**
    * Callback when caller's speech is transcribed
    */
   onUserTranscript?: (text: string) => void;
@@ -78,10 +83,70 @@ export class ElevenLabsClient {
   private isCleaningUp = false;
   private conversationId: string | null = null;
 
+  /**
+   * Set the conversation ID for audio recording
+   */
+  setConversationId(conversationId: string) {
+    this.conversationId = conversationId;
+    console.log('[ElevenLabsClient] 🎙️ Conversation ID set for recording:', conversationId);
+  }
+
+  /**
+   * Send audio chunk to backend for recording
+   */
+  private async sendAudioChunkToBackend(type: 'input' | 'output', base64Data: string): Promise<void> {
+    if (!this.conversationId) {
+      // Silently skip if no conversation ID (recording not enabled)
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/calls/start', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: this.conversationId,
+          type,
+          base64Data,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        // Log first few errors, then periodically
+        if (Math.random() < 0.05) { // Log ~5% of errors
+          console.error(`[ElevenLabsClient] Failed to send ${type} audio chunk:`, {
+            status: response.status,
+            error: errorText,
+            conversationId: this.conversationId,
+          });
+        }
+      }
+    } catch (error) {
+      // Log first few errors, then periodically
+      if (Math.random() < 0.05) {
+        console.error(`[ElevenLabsClient] Error sending ${type} audio chunk to backend:`, {
+          error,
+          conversationId: this.conversationId,
+        });
+      }
+      // Don't throw - recording failure shouldn't break the call
+    }
+  }
+
   constructor(options?: ElevenLabsClientOptions) {
     this.options = options ?? {};
     this.playbackRate = 0.6;
     this.voicePreference = this.options.voice ?? 'default';
+    
+    // Set conversation ID if provided
+    if (this.options.conversationId) {
+      this.conversationId = this.options.conversationId;
+      console.log('[ElevenLabsClient] 🎙️ Conversation ID set for recording:', this.conversationId);
+      console.log('[ElevenLabsClient] ✅ Audio recording is ENABLED - chunks will be sent to backend');
+    } else {
+      console.log('[ElevenLabsClient] ⚠️ No conversation ID provided - audio recording is DISABLED');
+    }
     
     // Get voice style from options or localStorage
     if (this.options.voiceStyle) {
@@ -615,6 +680,24 @@ export class ElevenLabsClient {
             }
             const base64Audio = btoa(binaryString);
 
+            // Send audio chunk to backend for recording (caller input)
+            // Send ALL chunks (including silence) to ensure complete recording
+            if (this.conversationId) {
+              // Log first few chunks to verify recording is working
+              if (audioChunkCount <= 5) {
+                console.log(`[ElevenLabsClient] 🎙️ Sending input audio chunk ${audioChunkCount} to backend (conversationId: ${this.conversationId})`);
+              }
+              this.sendAudioChunkToBackend('input', base64Audio).catch((error) => {
+                // Log first error and then periodically
+                if (audioChunkCount <= 5 || audioChunkCount % 100 === 0) {
+                  console.error('[ElevenLabsClient] Error sending input audio chunk:', error);
+                }
+              });
+            } else if (audioChunkCount === 1) {
+              console.error('[ElevenLabsClient] ❌❌❌ CRITICAL: No conversationId - audio chunks NOT being sent to backend!');
+              console.error('[ElevenLabsClient] Audio recording will NOT work without conversationId!');
+            }
+
             // Send audio chunk to ElevenLabs
             // CRITICAL: This is how caller audio reaches the AI
             // ElevenLabs ConvAI expects: { "user_audio_chunk": "<base64_encoded_pcm16>", "playback_speed": 0.6 }
@@ -864,7 +947,10 @@ export class ElevenLabsClient {
         // This captures AI agent voice (audio_output)
         if (this.conversationId) {
           this.sendAudioChunkToBackend('output', base64Audio).catch((error) => {
-            console.error('[ElevenLabsClient] Error sending output audio chunk:', error);
+            // Only log errors periodically to avoid spam
+            if (Math.random() < 0.01) {
+              console.error('[ElevenLabsClient] Error sending output audio chunk:', error);
+            }
           });
         }
       }

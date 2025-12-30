@@ -1379,7 +1379,35 @@ export default function DashboardPage() {
 
         setCalls((prev) => [newCall, ...prev]);
 
-        // End call recording and get audio URL (async operation outside setState)
+        // Save call with transcript to localStorage FIRST (so it exists when we update it)
+        if (typeof window !== 'undefined') {
+          const callLogEntry = {
+            ...newCall,
+            conversationId: currentActiveCall.conversationId, // Include conversationId for audio recording update
+            transcript: currentActiveCall.transcript,
+            keywords: currentActiveCall.keywords,
+            audioUrl: undefined, // Will be updated when recording completes
+          };
+
+          const existingLogs = localStorage.getItem('callLogs');
+          const callLogs = existingLogs ? JSON.parse(existingLogs) : [];
+          callLogs.unshift(callLogEntry); // Add to beginning
+
+          // Keep only last 100 calls to avoid storage issues
+          const trimmedLogs = callLogs.slice(0, 100);
+          localStorage.setItem('callLogs', JSON.stringify(trimmedLogs));
+          
+          console.log('[Dashboard] 💾 Saved call log to localStorage:', {
+            id: callLogEntry.id,
+            conversationId: callLogEntry.conversationId,
+            number: callLogEntry.number,
+          });
+          
+          // Dispatch custom event to notify other components
+          window.dispatchEvent(new CustomEvent('callLogsUpdated'));
+        }
+
+        // End call recording and get audio URL (async operation - will update call log)
         if (currentActiveCall.conversationId && typeof window !== 'undefined') {
           fetch('/api/calls/end', {
             method: 'POST',
@@ -1395,72 +1423,182 @@ export default function DashboardPage() {
             .then(async (response) => {
               if (!response.ok) {
                 const errorText = await response.text();
+                // Session not found is OK - call may not have been recorded
+                if (response.status === 404 && errorText.includes('Session not found')) {
+                  console.log('[Dashboard] ℹ️ No recording session found (call may not have been recorded):', currentActiveCall.conversationId);
+                  // Return a minimal response so we can still save the call log
+                  return { audioUrl: null, conversationId: currentActiveCall.conversationId };
+                }
                 console.error('[Dashboard] Failed to end call recording:', response.status, errorText);
-                return null;
+                // Return a minimal response even on error so we can still save the call log
+                return { audioUrl: null, conversationId: currentActiveCall.conversationId };
               }
               return response.json();
             })
             .then((data) => {
               const audioUrl = data?.audioUrl || null;
-              console.log('[Dashboard] 🎙️ Call recording ended, audio URL:', audioUrl);
-              console.log('[Dashboard] Full response data:', data);
+              console.log('[Dashboard] 🎙️ Call recording ended, received data:', {
+                conversationId: data?.conversationId,
+                audioUrl: audioUrl,
+                hasAudioUrl: !!audioUrl,
+                duration: data?.duration,
+                phoneNumber: data?.phoneNumber,
+              });
+              
+              // Detailed audioUrl validation
+              console.log('[Dashboard] 🔍 AudioUrl validation:', {
+                rawAudioUrl: audioUrl,
+                type: typeof audioUrl,
+                isString: typeof audioUrl === 'string',
+                isNull: audioUrl === null,
+                isUndefined: audioUrl === undefined,
+                isEmpty: audioUrl === '',
+                isValid: !!(audioUrl && typeof audioUrl === 'string' && audioUrl.trim() !== ''),
+                length: typeof audioUrl === 'string' ? audioUrl.length : 0,
+              });
 
               if (!audioUrl) {
                 console.warn('[Dashboard] ⚠️ No audio URL returned from /api/calls/end');
+                console.warn('[Dashboard] This could mean:');
+                console.warn('[Dashboard] 1. No audio chunks were recorded (check if chunks were sent)');
+                console.warn('[Dashboard] 2. Session was not found (check if /api/calls/start was called)');
+                console.warn('[Dashboard] 3. Audio file creation failed (check server logs)');
+              } else {
+                console.log('[Dashboard] ✅ Audio URL received:', audioUrl);
               }
 
               // Update call log entry with audio URL
               const existingLogs = localStorage.getItem('callLogs');
-              const callLogs = existingLogs ? JSON.parse(existingLogs) : [];
+              if (!existingLogs) {
+                console.warn('[Dashboard] ⚠️ No call logs found in localStorage to update');
+                return;
+              }
+
+              const callLogs = JSON.parse(existingLogs);
               
               // Find the call log entry we just added and update it with audioUrl
-              // Try matching by conversationId first, then by id
-              const callLogIndex = callLogs.findIndex((log: any) => 
-                log.id === newCall.id || 
-                log.conversationId === currentActiveCall.conversationId
-              );
+              // Try matching by conversationId first (most reliable), then by id
+              const callLogIndex = callLogs.findIndex((log: any) => {
+                // Prefer conversationId match (most reliable)
+                if (currentActiveCall.conversationId && log.conversationId === currentActiveCall.conversationId) {
+                  return true;
+                }
+                // Fallback to id match
+                if (log.id === newCall.id) {
+                  return true;
+                }
+                return false;
+              });
               
               if (callLogIndex !== -1) {
+                // Only save audioUrl if it's a valid non-empty string
+                const audioUrlToSave = (audioUrl && typeof audioUrl === 'string' && audioUrl.trim() !== '') 
+                  ? audioUrl 
+                  : undefined;
+                
                 const updatedLog = {
                   ...callLogs[callLogIndex],
-                  audioUrl: audioUrl || undefined,
+                  audioUrl: audioUrlToSave, // Save audioUrl only if valid string
                 };
                 callLogs[callLogIndex] = updatedLog;
+                
+                console.log('[Dashboard] 📝 Preparing to save audioUrl:', {
+                  originalAudioUrl: audioUrl,
+                  audioUrlToSave,
+                  type: typeof audioUrlToSave,
+                  willSave: !!audioUrlToSave,
+                });
+                
+                // CRITICAL: Save to localStorage
                 localStorage.setItem('callLogs', JSON.stringify(callLogs));
-                console.log('[Dashboard] ✅ Updated call log with audio URL:', updatedLog.id, updatedLog.audioUrl);
+                
+                console.log('[Dashboard] ✅ Updated call log with audio URL:', {
+                  id: updatedLog.id,
+                  conversationId: updatedLog.conversationId,
+                  audioUrl: updatedLog.audioUrl,
+                  hasAudioUrl: !!updatedLog.audioUrl,
+                });
+                
+                // Verify it was saved immediately
+                const verifyLogs = JSON.parse(localStorage.getItem('callLogs') || '[]');
+                const verifyLog = verifyLogs.find((log: any) => 
+                  log.id === updatedLog.id || 
+                  (log.conversationId && log.conversationId === updatedLog.conversationId)
+                );
+                
+                if (verifyLog) {
+                  console.log('[Dashboard] ✅ Verified audioUrl in localStorage:', {
+                    id: verifyLog.id,
+                    conversationId: verifyLog.conversationId,
+                    audioUrl: verifyLog.audioUrl,
+                    hasAudioUrl: !!verifyLog.audioUrl,
+                  });
+                  
+                  // Double-check: Read directly from localStorage
+                  const directRead = localStorage.getItem('callLogs');
+                  if (directRead) {
+                    const parsed = JSON.parse(directRead);
+                    const directLog = parsed.find((log: any) => log.id === updatedLog.id);
+                    if (directLog && directLog.audioUrl) {
+                      console.log('[Dashboard] ✅✅✅ CONFIRMED: audioUrl is in localStorage:', directLog.audioUrl);
+                    } else if (directLog) {
+                      console.error('[Dashboard] ❌❌❌ CRITICAL: audioUrl is MISSING from localStorage entry!');
+                      console.error('[Dashboard] Entry:', JSON.stringify(directLog, null, 2));
+                    }
+                  }
+                } else {
+                  console.error('[Dashboard] ❌ CRITICAL: Could not verify audioUrl was saved!');
+                }
+                
                 window.dispatchEvent(new CustomEvent('callLogsUpdated'));
               } else {
-                console.warn('[Dashboard] ⚠️ Could not find call log entry to update:', {
-                  newCallId: newCall.id,
-                  conversationId: currentActiveCall.conversationId,
-                  availableIds: callLogs.map((log: any) => ({ id: log.id, conversationId: log.conversationId })),
+                // Fallback: Try to find by phone number and timestamp (within 5 seconds)
+                const callTimestamp = newCall.timestamp instanceof Date 
+                  ? newCall.timestamp.getTime() 
+                  : new Date(newCall.timestamp).getTime();
+                
+                const fallbackIndex = callLogs.findIndex((log: any) => {
+                  const logTimestamp = log.timestamp instanceof Date 
+                    ? log.timestamp.getTime() 
+                    : new Date(log.timestamp).getTime();
+                  const timeDiff = Math.abs(callTimestamp - logTimestamp);
+                  return log.number === newCall.number && timeDiff < 5000; // Within 5 seconds
                 });
+                
+                if (fallbackIndex !== -1) {
+                  console.log('[Dashboard] 🔄 Found call log by fallback (phone + timestamp)');
+                  const updatedLog = {
+                    ...callLogs[fallbackIndex],
+                    audioUrl: audioUrl || undefined,
+                    conversationId: currentActiveCall.conversationId || callLogs[fallbackIndex].conversationId,
+                  };
+                  callLogs[fallbackIndex] = updatedLog;
+                  localStorage.setItem('callLogs', JSON.stringify(callLogs));
+                  console.log('[Dashboard] ✅ Updated call log (fallback) with audio URL:', {
+                    id: updatedLog.id,
+                    audioUrl: updatedLog.audioUrl,
+                  });
+                  window.dispatchEvent(new CustomEvent('callLogsUpdated'));
+                } else {
+                  console.warn('[Dashboard] ⚠️ Could not find call log entry to update:', {
+                    newCallId: newCall.id,
+                    conversationId: currentActiveCall.conversationId,
+                    phoneNumber: newCall.number,
+                    timestamp: newCall.timestamp,
+                    availableLogs: callLogs.slice(0, 5).map((log: any) => ({ 
+                      id: log.id, 
+                      conversationId: log.conversationId,
+                      number: log.number,
+                      timestamp: log.timestamp,
+                      hasAudioUrl: !!log.audioUrl,
+                    })),
+                  });
+                }
               }
             })
             .catch((error) => {
               console.error('[Dashboard] Error ending call recording:', error);
             });
-        }
-
-        // Save call with transcript to localStorage for call logs page (audioUrl will be added later)
-        if (typeof window !== 'undefined') {
-          const callLogEntry = {
-            ...newCall,
-            transcript: currentActiveCall.transcript,
-            keywords: currentActiveCall.keywords,
-            // audioUrl will be added when /api/calls/end completes
-          };
-
-          const existingLogs = localStorage.getItem('callLogs');
-          const callLogs = existingLogs ? JSON.parse(existingLogs) : [];
-          callLogs.unshift(callLogEntry); // Add to beginning
-
-          // Keep only last 100 calls to avoid storage issues
-          const trimmedLogs = callLogs.slice(0, 100);
-          localStorage.setItem('callLogs', JSON.stringify(trimmedLogs));
-          
-          // Dispatch custom event to notify other components
-          window.dispatchEvent(new CustomEvent('callLogsUpdated'));
         }
 
         // Add high-risk callers (>40% scam risk) to blocklist
@@ -1856,10 +1994,11 @@ export default function DashboardPage() {
       const phoneNumber = incomingCall.number;
       const startTime = new Date();
 
-      // Start call recording session
+      // Start call recording session FIRST (must complete before creating client)
       let conversationId: string | null = null;
       if (typeof window !== 'undefined') {
         try {
+          console.log('[Dashboard] 🎙️ Starting call recording session...');
           const response = await fetch('/api/calls/start', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1871,10 +2010,16 @@ export default function DashboardPage() {
           if (response.ok) {
             const data = await response.json();
             conversationId = data.conversationId;
-            console.log('[Dashboard] 🎙️ Started call recording:', conversationId);
+            console.log('[Dashboard] 🎙️ ✅ Recording session created:', conversationId);
+            console.log('[Dashboard] ✅ Audio chunks will now be captured and sent to backend');
+          } else {
+            const errorText = await response.text();
+            console.error('[Dashboard] ❌ Failed to start recording session:', response.status, errorText);
+            console.error('[Dashboard] ⚠️ Audio recording will NOT work without a session!');
           }
         } catch (error) {
-          console.error('[Dashboard] Error starting call recording:', error);
+          console.error('[Dashboard] ❌ Error starting call recording:', error);
+          console.error('[Dashboard] ⚠️ Audio recording will NOT work!');
           // Continue even if recording fails
         }
       }
@@ -1908,6 +2053,14 @@ export default function DashboardPage() {
         console.log('[Dashboard] 💾 localStorage voicePreference:', localStorage.getItem('voicePreference'));
         console.log('[Dashboard] 🔄 voicePreference state:', voicePreference);
         
+        // Create client with conversation ID for recording
+        console.log('[Dashboard] 🎙️ Creating ElevenLabsClient with conversationId:', conversationId);
+        if (!conversationId) {
+          console.error('[Dashboard] ❌❌❌ CRITICAL ERROR: No conversationId - audio recording will NOT work!');
+          console.error('[Dashboard] The recording session was not created successfully.');
+        } else {
+          console.log('[Dashboard] ✅ conversationId is available - audio recording is ENABLED');
+        }
         aiVoiceClientRef.current = new ElevenLabsClient({
           playbackRate: 0.6,
           voice: currentVoice,
@@ -2064,6 +2217,12 @@ export default function DashboardPage() {
             });
           },
         });
+
+        // Ensure conversationId is set (fallback if it wasn't available during construction)
+        if (conversationId && aiVoiceClientRef.current) {
+          aiVoiceClientRef.current.setConversationId(conversationId);
+          console.log('[Dashboard] ✅ Set conversationId on client:', conversationId);
+        }
 
         // Start the session
         void aiVoiceClientRef.current.start().catch((error) => {

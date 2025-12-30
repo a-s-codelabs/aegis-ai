@@ -57,10 +57,12 @@ async function uploadToLocal(
   try {
     // Ensure directory exists
     await mkdir(basePath, { recursive: true });
+    console.log('[AudioStorage] ✅ Directory ensured:', basePath);
     
     // Write file
     const filePath = join(basePath, filename);
     await writeFile(filePath, buffer);
+    console.log('[AudioStorage] ✅ File written:', filePath, `(${buffer.length} bytes)`);
     
     // Return public URL (relative to public folder)
     // Normalize path: remove './public' and ensure it starts with /
@@ -72,11 +74,20 @@ async function uploadToLocal(
     publicPath = publicPath.replace(/\/$/, '');
     
     const audioUrl = `${publicPath}/${filename}`;
-    console.log('[AudioStorage] Audio saved to:', filePath);
-    console.log('[AudioStorage] Public URL:', audioUrl);
+    console.log('[AudioStorage] ✅ Audio saved successfully:', {
+      filePath,
+      publicUrl: audioUrl,
+      fileSize: buffer.length,
+    });
     return audioUrl;
   } catch (error) {
-    console.error('[AudioStorage] Error uploading to local:', error);
+    console.error('[AudioStorage] ❌ Error uploading to local:', error);
+    console.error('[AudioStorage] Error details:', {
+      filename,
+      basePath,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     throw new Error(`Failed to save audio file: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
