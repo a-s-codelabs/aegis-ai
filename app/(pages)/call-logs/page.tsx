@@ -22,6 +22,7 @@ interface CallLog {
   risk?: number;
   transcript?: TranscriptEntry[];
   keywords?: string[];
+  conversationId?: string; // Conversation ID for audio recording
   audioUrl?: string; // URL to recorded audio from ElevenLabs
 }
 
@@ -58,12 +59,28 @@ export default function CallLogsPage() {
               .map((log: CallLog) => ({
                 ...log,
                 timestamp: new Date(log.timestamp),
+                // Ensure audioUrl is preserved
+                audioUrl: log.audioUrl,
+                conversationId: log.conversationId,
               }))
               .sort((a: CallLog, b: CallLog) => {
                 const timeA = a.timestamp instanceof Date ? a.timestamp.getTime() : new Date(a.timestamp).getTime();
                 const timeB = b.timestamp instanceof Date ? b.timestamp.getTime() : new Date(b.timestamp).getTime();
                 return timeB - timeA; // Descending order (newest first)
               });
+            
+            // Log audio URLs for debugging
+            const withAudio = parsedLogs.filter((log: CallLog) => log.audioUrl);
+            if (withAudio.length > 0) {
+              console.log('[CallLogs] ✅ Found calls with audio:', withAudio.map((log: CallLog) => ({
+                id: log.id,
+                number: log.number,
+                audioUrl: log.audioUrl,
+              })));
+            } else {
+              console.log('[CallLogs] ⚠️ No calls with audioUrl found in localStorage');
+            }
+            
             setCallLogs(parsedLogs);
             return storedLogs;
           } catch (error) {
@@ -90,9 +107,26 @@ export default function CallLogsPage() {
         const logs = loadCallLogs();
         if (logs) {
           const parsedLogs = JSON.parse(logs);
-          console.log('[CallLogs] Call logs updated, audio URLs:', 
-            parsedLogs.map((log: CallLog) => ({ id: log.id, audioUrl: log.audioUrl }))
+          console.log('[CallLogs] Call logs updated, checking audio URLs:', 
+            parsedLogs.map((log: CallLog) => ({ 
+              id: log.id, 
+              conversationId: log.conversationId,
+              audioUrl: log.audioUrl,
+              hasAudioUrl: !!log.audioUrl,
+              number: log.number 
+            }))
           );
+          
+          // Log which calls have audio
+          const callsWithAudio = parsedLogs.filter((log: CallLog) => log.audioUrl);
+          const callsWithoutAudio = parsedLogs.filter((log: CallLog) => !log.audioUrl);
+          console.log('[CallLogs] 📊 Audio status:', {
+            total: parsedLogs.length,
+            withAudio: callsWithAudio.length,
+            withoutAudio: callsWithoutAudio.length,
+            withAudioIds: callsWithAudio.map((log: CallLog) => log.id),
+            withoutAudioIds: callsWithoutAudio.map((log: CallLog) => log.id),
+          });
         }
       };
 
@@ -271,41 +305,7 @@ export default function CallLogsPage() {
                     {/* Expanded Transcript */}
                     {expandedCallId === call.id && (
                       <div className="border-t border-slate-700/50 bg-slate-900/60">
-                        {/* Recorded Audio Player - Above Transcript */}
-                        <div className="p-4 border-b border-slate-700/30 bg-slate-800/30">
-                          <h4 className="text-white font-semibold text-xs flex items-center gap-2 mb-3">
-                            <span className="material-symbols-outlined text-sm text-[#26d9bb]">
-                              library_music
-                            </span>
-                            Recorded Audio
-                          </h4>
-                          {call.audioUrl ? (
-                            <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/30">
-                              <audio
-                                controls
-                                className="w-full h-10"
-                                src={call.audioUrl}
-                                onError={(e) => {
-                                  console.error('[CallLogs] Audio playback error:', call.audioUrl, e);
-                                }}
-                                onLoadStart={() => {
-                                  console.log('[CallLogs] Loading audio:', call.audioUrl);
-                                }}
-                              >
-                                Your browser does not support the audio element.
-                              </audio>
-                              <p className="text-slate-400 text-[10px] mt-1">
-                                {call.audioUrl}
-                              </p>
-                            </div>
-                          ) : (
-                            <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/30">
-                              <p className="text-slate-400 text-xs text-center py-2">
-                                Audio recording not available for this call
-                              </p>
-                            </div>
-                          )}
-                        </div>
+                        {/* Recorded Audio section removed per user request */}
                         
                         {/* Transcript Section */}
                         <div className="p-4 space-y-3 max-h-96 overflow-y-auto scrollbar-hide">
@@ -398,14 +398,15 @@ export default function CallLogsPage() {
             <strong className="text-[#26d9bb]">Transcript Details:</strong> Expand any call to see the full conversation between the AI agent and caller.
           </div>
         </div>
-        <div className="flex items-start gap-3">
+        {/* Audio Recordings section hidden per user request */}
+        {/* <div className="flex items-start gap-3">
           <span className="material-symbols-outlined text-[#26d9bb] text-xl mt-0.5">
             library_music
           </span>
           <div>
             <strong className="text-[#26d9bb]">Audio Recordings:</strong> Listen to the recorded audio of each call, displayed above the transcript for easy playback and review.
           </div>
-        </div>
+        </div> */}
       </div>
     </>
   );

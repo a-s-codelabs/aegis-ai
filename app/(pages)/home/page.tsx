@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { MobileModal } from '@/components/ui/mobile-modal';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { getContacts, saveContacts, addContact as addContactUtil, normalizePhoneNumber } from '@/lib/utils/contacts';
+import { getContacts, saveContacts, addContact as addContactUtil, normalizePhoneNumber, seedDummyContacts, seedDummyBlocklist } from '@/lib/utils/contacts';
 
 interface RecentCall {
   id: string;
@@ -77,6 +77,10 @@ function HomeContent() {
       // Load recent calls and blocklist from localStorage
       useEffect(() => {
         if (typeof window !== 'undefined') {
+          // Seed dummy data if contacts and blocklist are empty
+          seedDummyContacts();
+          seedDummyBlocklist();
+
           // Function to load and format recent calls
           const loadRecentCalls = () => {
             const callLogsData = localStorage.getItem('callLogs');
@@ -136,48 +140,19 @@ function HomeContent() {
           // Load recent calls initially
           loadRecentCalls();
 
-      // Load blocklist from localStorage
-      const blocklistData = localStorage.getItem('blocklist');
-      if (blocklistData) {
-        try {
-          const blocklist = JSON.parse(blocklistData);
-          // Convert blocklist to blocked numbers format
-          // We need to get risk info from call logs
-          const callLogsData2 = localStorage.getItem('callLogs');
-          const callLogs = callLogsData2 ? JSON.parse(callLogsData2) : [];
-          
-          const blocked = blocklist.map((number: string, index: number) => {
-            // Find the call log entry for this number to get risk info
-            const callLog = callLogs.find((log: any) => log.number === number);
-            const riskPercentage = callLog?.risk || 95;
-            
-            return {
-              id: `blocked-${index}`,
-              number,
-              riskLevel: riskPercentage >= 90 ? 'Critical' : 'High',
-              riskPercentage,
-            };
-          });
-          setBlockedNumbers(blocked);
-        } catch (error) {
-          console.error('[Home] Error parsing blocklist:', error);
-        }
-      }
-
-      // Listen for storage changes and custom events to update in real-time
-      const handleStorageChange = () => {
-        // Reload recent calls (using the same function to ensure consistent sorting)
-        loadRecentCalls();
-
-        // Reload blocklist
+      // Function to load blocklist
+      const loadBlocklist = () => {
         const blocklistData = localStorage.getItem('blocklist');
         if (blocklistData) {
           try {
             const blocklist = JSON.parse(blocklistData);
+            // Convert blocklist to blocked numbers format
+            // We need to get risk info from call logs
             const callLogsData2 = localStorage.getItem('callLogs');
             const callLogs = callLogsData2 ? JSON.parse(callLogsData2) : [];
             
             const blocked = blocklist.map((number: string, index: number) => {
+              // Find the call log entry for this number to get risk info
               const callLog = callLogs.find((log: any) => log.number === number);
               const riskPercentage = callLog?.risk || 95;
               
@@ -192,7 +167,23 @@ function HomeContent() {
           } catch (error) {
             console.error('[Home] Error parsing blocklist:', error);
           }
+        } else {
+          setBlockedNumbers([]);
         }
+      };
+
+      // Load blocklist initially (with small delay to ensure seed completes)
+      setTimeout(() => {
+        loadBlocklist();
+      }, 100);
+
+      // Listen for storage changes and custom events to update in real-time
+      const handleStorageChange = () => {
+        // Reload recent calls (using the same function to ensure consistent sorting)
+        loadRecentCalls();
+
+        // Reload blocklist
+        loadBlocklist();
       };
 
       const handleCallLogsUpdated = () => {
@@ -327,7 +318,11 @@ function HomeContent() {
 
   // Load contacts on mount and listen for changes
   useEffect(() => {
-    loadContacts();
+    if (typeof window !== 'undefined') {
+      // Seed dummy contacts if empty
+      seedDummyContacts();
+      loadContacts();
+    }
 
     // Listen for storage changes to reload contacts (for cross-tab synchronization)
     const handleStorageChange = (e: StorageEvent) => {

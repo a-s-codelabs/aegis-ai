@@ -94,6 +94,16 @@ export async function PUT(req: Request) {
       );
     }
 
+    // Log periodically to verify chunks are being received
+    const totalChunks = session.inputChunks.length + session.outputChunks.length;
+    if (totalChunks === 1 || totalChunks % 100 === 0) {
+      console.log(`[CallStart] ✅ Received ${type} audio chunk for ${conversationId}:`, {
+        totalChunks,
+        inputChunks: session.inputChunks.length,
+        outputChunks: session.outputChunks.length,
+      });
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('[CallStart] Error adding chunk:', error);
