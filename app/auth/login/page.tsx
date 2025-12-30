@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
@@ -14,7 +14,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!phoneNumber.trim() || !password.trim()) {
@@ -77,11 +77,10 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [phoneNumber, password, toast, router]);
 
   // Login Content Component (to be rendered inside iPhone)
-  function LoginContent() {
-    return (
+  const LoginContent = (
       <div className="relative flex h-full min-h-screen w-full flex-col overflow-hidden bg-primary font-display text-slate-100">
         {/* Background layers */}
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-[#111827] to-[#020617]" />
@@ -247,7 +246,6 @@ export default function LoginPage() {
         </div>
       </div>
     );
-  }
 
   // Prepare left content (instructions)
   const leftContent = (
@@ -298,7 +296,7 @@ export default function LoginPage() {
   return (
     <SplitLayoutWithIPhone
       leftContent={leftContent}
-      iphoneContent={<LoginContent />}
+      iphoneContent={LoginContent}
       leftBasis="60%"
     />
   );

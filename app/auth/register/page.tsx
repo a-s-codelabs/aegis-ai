@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
@@ -17,7 +17,7 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleRegister = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (
@@ -104,11 +104,10 @@ export default function RegisterPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [name, phoneNumber, password, confirmPassword, toast, router]);
 
   // Register Content Component (to be rendered inside iPhone)
-  function RegisterContent() {
-    return (
+  const RegisterContent = (
       <div className="relative flex h-full min-h-screen w-full flex-col overflow-hidden bg-primary font-display text-slate-100">
         {/* Background layers */}
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-[#111827] to-[#020617]" />
@@ -325,7 +324,6 @@ export default function RegisterPage() {
         </div>
       </div>
     );
-  }
 
   // Prepare left content (instructions)
   const leftContent = (
@@ -376,7 +374,7 @@ export default function RegisterPage() {
   return (
     <SplitLayoutWithIPhone
       leftContent={leftContent}
-      iphoneContent={<RegisterContent />}
+      iphoneContent={RegisterContent}
       leftBasis="60%"
     />
   );
