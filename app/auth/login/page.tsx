@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
@@ -14,7 +14,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!phoneNumber.trim() || !password.trim()) {
@@ -77,11 +77,10 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [phoneNumber, password, toast, router]);
 
   // Login Content Component (to be rendered inside iPhone)
-  function LoginContent() {
-    return (
+  const LoginContent = (
       <div className="relative flex h-full min-h-screen w-full flex-col overflow-hidden bg-primary font-display text-slate-100">
         {/* Background layers */}
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-[#111827] to-[#020617]" />
@@ -124,7 +123,6 @@ export default function LoginPage() {
                     </span>
                   </div>
                 </div>
-              </div>
 
               <h1 className="mb-2 text-3xl font-bold text-white">Welcome Back</h1>
               <p className="text-base text-slate-400">
@@ -160,6 +158,7 @@ export default function LoginPage() {
                     />
                   </div>
                 </div>
+              </div>
 
                 <div className="space-y-1.5">
                   <label
@@ -196,15 +195,6 @@ export default function LoginPage() {
                         </span>
                       </button>
                     </div>
-                  </div>
-
-                  <div className="flex justify-end pt-1">
-                    <button
-                      type="button"
-                      className="text-sm font-medium text-[#26d9bb] transition-colors hover:text-teal-300"
-                    >
-                      Forgot Password?
-                    </button>
                   </div>
                 </div>
               </div>
@@ -247,7 +237,6 @@ export default function LoginPage() {
         </div>
       </div>
     );
-  }
 
   // Prepare left content (instructions)
   const leftContent = (
@@ -288,7 +277,7 @@ export default function LoginPage() {
             help
           </span>
           <div>
-            <strong className="text-[#26d9bb]">Need Help?</strong> If you forgot your password, click "Forgot Password?" to reset it. Don't have an account? Click "Register" to create one.
+            <strong className="text-[#26d9bb]">Need Help?</strong> Don't have an account? Click "Register" to create one.
           </div>
         </div>
       </div>
@@ -298,7 +287,7 @@ export default function LoginPage() {
   return (
     <SplitLayoutWithIPhone
       leftContent={leftContent}
-      iphoneContent={<LoginContent />}
+      iphoneContent={LoginContent}
       leftBasis="60%"
     />
   );
