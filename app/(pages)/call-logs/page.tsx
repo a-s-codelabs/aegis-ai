@@ -305,108 +305,7 @@ export default function CallLogsPage() {
                     {/* Expanded Transcript */}
                     {expandedCallId === call.id && (
                       <div className="border-t border-slate-700/50 bg-slate-900/60">
-                        {/* Recorded Audio Player - Above Transcript */}
-                        <div className="p-4 border-b border-slate-700/30 bg-slate-800/30">
-                          <h4 className="text-white font-semibold text-xs flex items-center gap-2 mb-3">
-                            <span className="material-symbols-outlined text-sm text-[#26d9bb]">
-                              library_music
-                            </span>
-                            Recorded Audio
-                          </h4>
-                          {(() => {
-                            // Debug: Log audioUrl status when expanded
-                            console.log('[CallLogs] 🔍 Audio check for call:', {
-                              id: call.id,
-                              conversationId: call.conversationId,
-                              audioUrl: call.audioUrl,
-                              hasAudioUrl: !!call.audioUrl,
-                              audioUrlType: typeof call.audioUrl,
-                              audioUrlValue: call.audioUrl,
-                            });
-                            
-                            return call.audioUrl ? (() => {
-                            // Normalize audio URL - ensure it's a valid path
-                            const normalizeAudioUrl = (url: string): string => {
-                              // If it's already a full URL (http/https), use as-is
-                              if (url.startsWith('http://') || url.startsWith('https://')) {
-                                return url;
-                              }
-                              // If it starts with /, use as-is
-                              if (url.startsWith('/')) {
-                                return url;
-                              }
-                              // Otherwise, prepend / to make it a relative path
-                              return `/${url}`;
-                            };
-
-                            const normalizedUrl = normalizeAudioUrl(call.audioUrl);
-                            
-                            return (
-                              <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/30">
-                                <audio
-                                  controls
-                                  className="w-full h-10 rounded-md"
-                                  src={normalizedUrl}
-                                  preload="metadata"
-                                  onError={(e) => {
-                                    console.error('[CallLogs] Audio playback error:', normalizedUrl, e);
-                                    const target = e.target as HTMLAudioElement;
-                                    if (target.error) {
-                                      console.error('[CallLogs] Audio error details:', {
-                                        code: target.error.code,
-                                        message: target.error.message,
-                                      });
-                                    }
-                                  }}
-                                  onLoadStart={() => {
-                                    console.log('[CallLogs] Loading audio:', normalizedUrl);
-                                  }}
-                                  onLoadedMetadata={() => {
-                                    console.log('[CallLogs] Audio metadata loaded:', normalizedUrl);
-                                  }}
-                                  onCanPlay={() => {
-                                    console.log('[CallLogs] Audio ready to play:', normalizedUrl);
-                                  }}
-                                >
-                                  Your browser does not support the audio element.
-                                </audio>
-                                <div className="flex items-center justify-between mt-2">
-                                  <p className="text-slate-400 text-[10px] truncate flex-1 mr-2" title={normalizedUrl}>
-                                    {normalizedUrl}
-                                  </p>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      window.open(normalizedUrl, '_blank');
-                                    }}
-                                    className="text-[#26d9bb] hover:text-[#20c4a8] transition-colors flex items-center gap-1 text-[10px] shrink-0"
-                                    title="Open audio in new tab"
-                                  >
-                                    <span className="material-symbols-outlined text-xs">
-                                      open_in_new
-                                    </span>
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })() : (
-                            <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/30">
-                              <div className="flex items-center justify-center gap-2 py-2">
-                                <span className="material-symbols-outlined text-slate-500 text-sm">
-                                  volume_off
-                                </span>
-                                <p className="text-slate-400 text-xs text-center">
-                                  Audio recording not available for this call
-                                </p>
-                              </div>
-                              {/* Debug info */}
-                              <p className="text-slate-500 text-[10px] text-center mt-1">
-                                Call ID: {call.id} | Conversation ID: {call.conversationId || 'none'}
-                              </p>
-                            </div>
-                          );
-                          })()}
-                        </div>
+                        {/* Recorded Audio section removed per user request */}
                         
                         {/* Transcript Section */}
                         <div className="p-4 space-y-3 max-h-96 overflow-y-auto scrollbar-hide">
@@ -499,14 +398,15 @@ export default function CallLogsPage() {
             <strong className="text-[#26d9bb]">Transcript Details:</strong> Expand any call to see the full conversation between the AI agent and caller.
           </div>
         </div>
-        <div className="flex items-start gap-3">
+        {/* Audio Recordings section hidden per user request */}
+        {/* <div className="flex items-start gap-3">
           <span className="material-symbols-outlined text-[#26d9bb] text-xl mt-0.5">
             library_music
           </span>
           <div>
             <strong className="text-[#26d9bb]">Audio Recordings:</strong> Listen to the recorded audio of each call, displayed above the transcript for easy playback and review.
           </div>
-        </div>
+        </div> */}
       </div>
     </>
   );
