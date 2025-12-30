@@ -123,6 +123,14 @@ export default function RegisterPage() {
       localStorage.setItem('contactAccessEnabled', String(contactAccessGranted));
       localStorage.setItem('divertCallPopupEnabled', String(aiCallDiversionGranted));
       
+      // If contact access is granted, seed dummy contacts immediately
+      if (contactAccessGranted) {
+        // Import and call seedDummyContacts
+        import('@/lib/utils/contacts').then(({ seedDummyContacts }) => {
+          seedDummyContacts();
+        });
+      }
+      
       // Dispatch events to notify other components
       window.dispatchEvent(new Event('contactAccessChanged'));
       window.dispatchEvent(new Event('divertCallPopupChanged'));

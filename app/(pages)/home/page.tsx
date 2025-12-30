@@ -346,30 +346,55 @@ function HomeContent() {
   // Load contacts on mount and listen for changes
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // Only seed dummy contacts if contact access is enabled
+      // Check contact access and seed dummy contacts if enabled
       const contactAccess = localStorage.getItem('contactAccessEnabled');
       const hasContactAccess = contactAccess === null || contactAccess === 'true';
       
       if (hasContactAccess) {
         seedDummyContacts();
-      }
-      loadContacts();
-    }
-
-    // Listen for storage changes to reload contacts (for cross-tab synchronization)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'aegis-ai-contacts') {
+        // Reload contacts after seeding
         setTimeout(() => {
           loadContacts();
-        }, 0);
+        }, 100);
+      } else {
+        loadContacts();
       }
-    };
+    }
 
-    window.addEventListener('storage', handleStorageChange);
+      // Listen for storage changes and contact access changes
+      const handleStorageChange = (e: StorageEvent) => {
+        if (e.key === 'aegis-ai-contacts' || e.key === 'contactAccessEnabled') {
+          setTimeout(() => {
+            const contactAccess = localStorage.getItem('contactAccessEnabled');
+            const hasContactAccess = contactAccess === null || contactAccess === 'true';
+            if (hasContactAccess) {
+              seedDummyContacts();
+            }
+            loadContacts();
+          }, 0);
+        }
+      };
 
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
+      const handleContactAccessChange = () => {
+        const contactAccess = localStorage.getItem('contactAccessEnabled');
+        const hasContactAccess = contactAccess === null || contactAccess === 'true';
+        if (hasContactAccess) {
+          seedDummyContacts();
+          setTimeout(() => {
+            loadContacts();
+          }, 100);
+        } else {
+          loadContacts();
+        }
+      };
+
+      window.addEventListener('storage', handleStorageChange);
+      window.addEventListener('contactAccessChanged', handleContactAccessChange);
+
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('contactAccessChanged', handleContactAccessChange);
+      };
   }, []);
 
   const getContactColor = (color: string) => {
@@ -569,30 +594,26 @@ function HomeContent() {
           </section>
 
           {/* Tabs Navigation */}
-          <Tabs defaultValue={isNewUser ? "contacts" : "recent-calls"} className="w-full">
+          <Tabs defaultValue="recent-calls" className="w-full">
             <TabsList className="w-full justify-start bg-transparent p-0 h-auto border-b border-gray-800/50 rounded-none overflow-x-auto scrollbar-hide flex-nowrap sticky top-0 bg-[#0B1121]/95 backdrop-blur-sm z-10">
-              {!isNewUser && (
-                <>
-                  <TabsTrigger
-                    value="recent-calls"
-                    className="data-[state=active]:bg-transparent data-[state=active]:text-[#26d9bb] data-[state=active]:border-b-2 data-[state=active]:border-[#26d9bb] text-gray-400 border-b-2 border-transparent rounded-none px-3 py-2 text-[11px] font-medium transition-all whitespace-nowrap flex-shrink-0"
-                  >
-                    Recent Calls
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="block-list"
-                    className="data-[state=active]:bg-transparent data-[state=active]:text-[#26d9bb] data-[state=active]:border-b-2 data-[state=active]:border-[#26d9bb] text-gray-400 border-b-2 border-transparent rounded-none px-3 py-2 text-[11px] font-medium transition-all whitespace-nowrap flex-shrink-0"
-                  >
-                    Block List
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="whitelist"
-                    className="data-[state=active]:bg-transparent data-[state=active]:text-[#26d9bb] data-[state=active]:border-b-2 data-[state=active]:border-[#26d9bb] text-gray-400 border-b-2 border-transparent rounded-none px-3 py-2 text-[11px] font-medium transition-all whitespace-nowrap flex-shrink-0"
-                  >
-                    Whitelist
-                  </TabsTrigger>
-                </>
-              )}
+              <TabsTrigger
+                value="recent-calls"
+                className="data-[state=active]:bg-transparent data-[state=active]:text-[#26d9bb] data-[state=active]:border-b-2 data-[state=active]:border-[#26d9bb] text-gray-400 border-b-2 border-transparent rounded-none px-3 py-2 text-[11px] font-medium transition-all whitespace-nowrap flex-shrink-0"
+              >
+                Recent Calls
+              </TabsTrigger>
+              <TabsTrigger
+                value="block-list"
+                className="data-[state=active]:bg-transparent data-[state=active]:text-[#26d9bb] data-[state=active]:border-b-2 data-[state=active]:border-[#26d9bb] text-gray-400 border-b-2 border-transparent rounded-none px-3 py-2 text-[11px] font-medium transition-all whitespace-nowrap flex-shrink-0"
+              >
+                Block List
+              </TabsTrigger>
+              <TabsTrigger
+                value="whitelist"
+                className="data-[state=active]:bg-transparent data-[state=active]:text-[#26d9bb] data-[state=active]:border-b-2 data-[state=active]:border-[#26d9bb] text-gray-400 border-b-2 border-transparent rounded-none px-3 py-2 text-[11px] font-medium transition-all whitespace-nowrap flex-shrink-0"
+              >
+                Whitelist
+              </TabsTrigger>
               <TabsTrigger
                 value="contacts"
                 className="data-[state=active]:bg-transparent data-[state=active]:text-[#26d9bb] data-[state=active]:border-b-2 data-[state=active]:border-[#26d9bb] text-gray-400 border-b-2 border-transparent rounded-none px-3 py-2 text-[11px] font-medium transition-all whitespace-nowrap flex-shrink-0"
@@ -601,9 +622,8 @@ function HomeContent() {
               </TabsTrigger>
             </TabsList>
 
-            {/* Recent Calls Tab - Only show if not new user */}
-            {!isNewUser && (
-              <TabsContent value="recent-calls" className="mt-4 space-y-4">
+            {/* Recent Calls Tab */}
+            <TabsContent value="recent-calls" className="mt-4 space-y-4">
               <div className="flex items-center justify-between mb-2 px-1">
                 <h3 className="text-[11px] font-semibold text-gray-300 uppercase tracking-wider">
                   Latest Activity
@@ -683,11 +703,9 @@ function HomeContent() {
                 )}
               </div>
             </TabsContent>
-            )}
 
-            {/* Block List Tab - Only show if not new user */}
-            {!isNewUser && (
-              <TabsContent value="block-list" className="mt-4 space-y-4">
+            {/* Block List Tab */}
+            <TabsContent value="block-list" className="mt-4 space-y-4">
               <div className="flex items-center justify-between mb-2 px-1">
                 <h3 className="text-[11px] font-semibold text-gray-300 uppercase tracking-wider">
                   Block List
@@ -696,8 +714,17 @@ function HomeContent() {
                   View All
                 </button>
               </div>
-              <div className="space-y-2.5">
-                {blockedNumbers.map((blocked) => (
+              {blockedNumbers.length === 0 ? (
+                <div className="bg-[#151e32] border border-gray-800 rounded-xl p-6 text-center">
+                  <span className="material-symbols-outlined text-gray-500 text-4xl mb-2 block">
+                    block
+                  </span>
+                  <p className="text-gray-400 text-sm">No blocked numbers yet</p>
+                  <p className="text-gray-500 text-xs mt-1">Blocked numbers will appear here</p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {blockedNumbers.map((blocked) => (
                   <div
                     key={blocked.id}
                     className="bg-[#1e293b] border border-gray-700/50 p-3 rounded-xl shadow-md flex items-center justify-between gap-2.5"
@@ -722,14 +749,13 @@ function HomeContent() {
                       Unblock
                     </button>
                   </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </TabsContent>
-            )}
 
-            {/* Whitelist Tab - Only show if not new user */}
-            {!isNewUser && (
-              <TabsContent value="whitelist" className="mt-4 space-y-4">
+            {/* Whitelist Tab */}
+            <TabsContent value="whitelist" className="mt-4 space-y-4">
               <div className="flex items-center justify-between mb-2 px-1">
                 <h3 className="text-[11px] font-semibold text-gray-300 uppercase tracking-wider">
                   Whitelist
@@ -782,7 +808,6 @@ function HomeContent() {
                 </div>
               </div>
             </TabsContent>
-            )}
 
             {/* Contacts Tab */}
             <TabsContent value="contacts" className="mt-4 space-y-4">
