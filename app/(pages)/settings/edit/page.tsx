@@ -2,7 +2,7 @@
 
 import { AppLayout } from '@/components/layout/app-layout';
 import { SplitLayoutWithIPhone } from '@/components/layout/split-layout-with-iphone';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 
@@ -204,156 +204,6 @@ export default function EditProfilePage() {
     return phoneNumber?.slice(-1) || 'U';
   };
 
-  // Edit Profile Content Component (to be rendered inside iPhone)
-  function EditProfileContent() {
-    if (isLoadingProfile) {
-      return (
-        <AppLayout fullWidth>
-          <div className="flex flex-col min-h-full items-center justify-center">
-            <div className="text-gray-400">Loading...</div>
-          </div>
-        </AppLayout>
-      );
-    }
-
-    return (
-      <AppLayout fullWidth>
-        <div className="flex flex-col min-h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4 gap-2">
-            <button
-              onClick={handleCancel}
-              className="text-gray-400 hover:text-white transition-colors flex-shrink-0"
-              aria-label="Cancel"
-            >
-              <span
-                className="material-symbols-outlined text-2xl"
-                style={{ fontVariationSettings: '"FILL" 0, "wght" 400' }}
-              >
-                arrow_back
-              </span>
-            </button>
-            <h1 className="text-xl font-semibold text-white flex-1 text-center">Edit Profile</h1>
-            <button
-              onClick={handleSave}
-              disabled={isLoading}
-              className="text-[#26d9bb] hover:text-[#20c4a8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium flex-shrink-0"
-            >
-              {isLoading ? 'Saving...' : 'Save'}
-            </button>
-          </div>
-
-          {/* Profile Picture Section */}
-          <section className="w-full flex flex-col items-center mb-8">
-            <div className="relative mb-4">
-              {profilePicture ? (
-                <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-gray-700/50">
-                  <img
-                    src={profilePicture}
-                    alt="Profile"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              ) : (
-                <div className="w-32 h-32 rounded-full bg-[#1e293b] flex items-center justify-center border-2 border-gray-700/50">
-                  <span className="text-4xl font-semibold text-white">
-                    {getUserInitials()}
-                  </span>
-                </div>
-              )}
-              
-              {/* Edit Icon Overlay */}
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="absolute -bottom-1 -right-1 w-10 h-10 rounded-full bg-[#26d9bb] flex items-center justify-center border-2 border-[#0B1121] hover:bg-[#20c4a8] transition-colors shadow-lg z-10"
-                aria-label="Change profile picture"
-              >
-                <span
-                  className="material-symbols-outlined text-white text-lg leading-none"
-                  style={{ fontVariationSettings: '"FILL" 0, "wght" 500' }}
-                >
-                  {profilePicture ? 'edit' : 'add_photo_alternate'}
-                </span>
-              </button>
-
-              {/* Remove Image Button */}
-              {profilePicture && (
-                <button
-                  onClick={handleRemoveImage}
-                  className="absolute -top-1 -right-1 w-8 h-8 rounded-full bg-red-500 flex items-center justify-center border-2 border-[#0B1121] hover:bg-red-600 transition-colors shadow-lg z-10"
-                  aria-label="Remove profile picture"
-                >
-                  <span
-                    className="material-symbols-outlined text-white text-sm leading-none"
-                    style={{ fontVariationSettings: '"FILL" 0, "wght" 500' }}
-                  >
-                    close
-                  </span>
-                </button>
-              )}
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="hidden"
-                aria-label="Upload profile picture"
-              />
-            </div>
-            <p className="text-xs text-gray-400 text-center">
-              Tap to change profile picture
-            </p>
-          </section>
-
-          {/* Form Fields */}
-          <section className="w-full space-y-4 flex-1">
-            {/* Name Field */}
-            <div className="space-y-2">
-              <label htmlFor="name" className="text-sm font-medium text-gray-300">
-                Name
-              </label>
-              <input
-                id="name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter your name"
-                className="w-full px-4 py-3 rounded-xl bg-[#151e32] border border-gray-800/50 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#26d9bb] focus:border-transparent"
-              />
-            </div>
-
-            {/* Phone Number Field */}
-            <div className="space-y-2">
-              <label htmlFor="phone" className="text-sm font-medium text-gray-300">
-                Phone Number
-              </label>
-              <input
-                id="phone"
-                type="tel"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="+1234567890"
-                className="w-full px-4 py-3 rounded-xl bg-[#151e32] border border-gray-800/50 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#26d9bb] focus:border-transparent"
-              />
-            </div>
-          </section>
-
-          {/* Save Button at Bottom */}
-          <div className="mt-auto pt-6">
-            <button
-              onClick={handleSave}
-              disabled={isLoading || !name.trim() || !phoneNumber.trim()}
-              className="w-full py-3 rounded-xl bg-[#26d9bb] text-white font-semibold hover:bg-[#20c4a8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
-            >
-              {isLoading ? 'Saving...' : 'Save Changes'}
-            </button>
-          </div>
-        </div>
-      </AppLayout>
-    );
-  }
-
   // Prepare left content (instructions)
   const leftContent = (
     <>
@@ -392,10 +242,154 @@ export default function EditProfilePage() {
     </>
   );
 
+  // iPhone content - inlined directly to prevent component recreation
+  const iphoneContent = isLoadingProfile ? (
+    <AppLayout fullWidth>
+      <div className="flex flex-col min-h-full items-center justify-center">
+        <div className="text-gray-400">Loading...</div>
+      </div>
+    </AppLayout>
+  ) : (
+    <AppLayout fullWidth>
+      <div className="flex flex-col min-h-full">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4 gap-2">
+          <button
+            onClick={handleCancel}
+            className="text-gray-400 hover:text-white transition-colors flex-shrink-0"
+            aria-label="Cancel"
+          >
+            <span
+              className="material-symbols-outlined text-2xl"
+              style={{ fontVariationSettings: '"FILL" 0, "wght" 400' }}
+            >
+              arrow_back
+            </span>
+          </button>
+          <h1 className="text-xl font-semibold text-white flex-1 text-center">Edit Profile</h1>
+          <button
+            onClick={handleSave}
+            disabled={isLoading}
+            className="text-[#26d9bb] hover:text-[#20c4a8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium flex-shrink-0"
+          >
+            {isLoading ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+
+        {/* Profile Picture Section */}
+        <section className="w-full flex flex-col items-center mb-8">
+          <div className="relative mb-4">
+            {profilePicture ? (
+              <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-gray-700/50">
+                <img
+                  src={profilePicture}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="w-32 h-32 rounded-full bg-[#1e293b] flex items-center justify-center border-2 border-gray-700/50">
+                <span className="text-4xl font-semibold text-white">
+                  {getUserInitials()}
+                </span>
+              </div>
+            )}
+            
+            {/* Edit Icon Overlay */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute -bottom-1 -right-1 w-10 h-10 rounded-full bg-[#26d9bb] flex items-center justify-center border-2 border-[#0B1121] hover:bg-[#20c4a8] transition-colors shadow-lg z-10"
+              aria-label="Change profile picture"
+            >
+              <span
+                className="material-symbols-outlined text-white text-lg leading-none"
+                style={{ fontVariationSettings: '"FILL" 0, "wght" 500' }}
+              >
+                {profilePicture ? 'edit' : 'add_photo_alternate'}
+              </span>
+            </button>
+
+            {/* Remove Image Button */}
+            {profilePicture && (
+              <button
+                onClick={handleRemoveImage}
+                className="absolute -top-1 -right-1 w-8 h-8 rounded-full bg-red-500 flex items-center justify-center border-2 border-[#0B1121] hover:bg-red-600 transition-colors shadow-lg z-10"
+                aria-label="Remove profile picture"
+              >
+                <span
+                  className="material-symbols-outlined text-white text-sm leading-none"
+                  style={{ fontVariationSettings: '"FILL" 0, "wght" 500' }}
+                >
+                  close
+                </span>
+              </button>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="hidden"
+              aria-label="Upload profile picture"
+            />
+          </div>
+          <p className="text-xs text-gray-400 text-center">
+            Tap to change profile picture
+          </p>
+        </section>
+
+        {/* Form Fields */}
+        <section className="w-full space-y-4 flex-1">
+          {/* Name Field */}
+          <div className="space-y-2">
+            <label htmlFor="name" className="text-sm font-medium text-gray-300">
+              Name
+            </label>
+            <input
+              id="name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter your name"
+              className="w-full px-4 py-3 rounded-xl bg-[#151e32] border border-gray-800/50 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#26d9bb] focus:border-transparent"
+            />
+          </div>
+
+          {/* Phone Number Field */}
+          <div className="space-y-2">
+            <label htmlFor="phone" className="text-sm font-medium text-gray-300">
+              Phone Number
+            </label>
+            <input
+              id="phone"
+              type="tel"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              placeholder="+1234567890"
+              className="w-full px-4 py-3 rounded-xl bg-[#151e32] border border-gray-800/50 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#26d9bb] focus:border-transparent"
+            />
+          </div>
+        </section>
+
+        {/* Save Button at Bottom */}
+        <div className="mt-auto pt-6">
+          <button
+            onClick={handleSave}
+            disabled={isLoading || !name.trim() || !phoneNumber.trim()}
+            className="w-full py-3 rounded-xl bg-[#26d9bb] text-white font-semibold hover:bg-[#20c4a8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
+          >
+            {isLoading ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+    </AppLayout>
+  );
+
   return (
     <SplitLayoutWithIPhone
       leftContent={leftContent}
-      iphoneContent={<EditProfileContent />}
+      iphoneContent={iphoneContent}
       leftBasis="60%"
     />
   );

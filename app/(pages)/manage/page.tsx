@@ -2,7 +2,7 @@
 
 import { AppLayout } from '@/components/layout/app-layout';
 import { SplitLayoutWithIPhone } from '@/components/layout/split-layout-with-iphone';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useLayoutEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { VoiceSelector, getVoicePreference } from '@/components/voice-selector';
 
@@ -32,6 +32,10 @@ export default function ManagePage() {
   const [selectedVoiceAgent, setSelectedVoiceAgent] =
     useState<VoicePreference>('default');
   const [currentDiversionMessage, setCurrentDiversionMessage] = useState('Standard Aegis AI Warning');
+  
+  // Ref to track scroll container and preserve scroll position
+  const scrollContainerRef = useRef<HTMLElement | null>(null);
+  const scrollPositionRef = useRef<number>(0);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -248,6 +252,11 @@ export default function ManagePage() {
   }, [voiceStyleValue, voiceStyle]);
 
   const handleSensitivityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    // Save scroll position before state update
+    if (scrollContainerRef.current) {
+      scrollPositionRef.current = scrollContainerRef.current.scrollTop;
+    }
     const newValue = Number(e.target.value);
     setSensitivityValue(newValue);
     
@@ -255,9 +264,21 @@ export default function ManagePage() {
     if (typeof window !== 'undefined') {
       localStorage.setItem('diversionSensitivityValue', String(newValue));
     }
+    
+    // Restore scroll position after state update
+    requestAnimationFrame(() => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = scrollPositionRef.current;
+      }
+    });
   };
 
   const handleVoiceStyleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    // Save scroll position before state update
+    if (scrollContainerRef.current) {
+      scrollPositionRef.current = scrollContainerRef.current.scrollTop;
+    }
     const newValue = Number(e.target.value);
     setVoiceStyleValue(newValue);
     
@@ -265,9 +286,22 @@ export default function ManagePage() {
     if (typeof window !== 'undefined') {
       localStorage.setItem('voiceStyleValue', String(newValue));
     }
+    
+    // Restore scroll position after state update
+    requestAnimationFrame(() => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = scrollPositionRef.current;
+      }
+    });
   };
 
-  const handleVoiceAgentChange = async (agent: VoicePreference) => {
+  const handleVoiceAgentChange = async (e: React.MouseEvent<HTMLButtonElement>, agent: VoicePreference) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Save scroll position before state update
+    if (scrollContainerRef.current) {
+      scrollPositionRef.current = scrollContainerRef.current.scrollTop;
+    }
     console.log('[Manage] Voice agent changed to:', agent);
     setSelectedVoiceAgent(agent);
     localStorage.setItem('voicePreference', agent);
@@ -286,17 +320,93 @@ export default function ManagePage() {
     const event = new CustomEvent('voicePreferenceChanged', { detail: { voice: agent } });
     window.dispatchEvent(event);
     console.log('[Manage] Voice preference change event dispatched');
+    
+    // Restore scroll position after state update
+    requestAnimationFrame(() => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = scrollPositionRef.current;
+      }
+    });
   };
 
   // Manage Content Component (to be rendered inside iPhone)
   function ManageContent() {
+    // Find and store reference to scroll container
+    useLayoutEffect(() => {
+      // Find the scroll container (main element with overflow-y-auto)
+      const findScrollContainer = () => {
+        const mainElement = document.querySelector('main[class*="overflow-y-auto"]') as HTMLElement;
+        if (mainElement) {
+          scrollContainerRef.current = mainElement;
+          return true;
+        }
+        return false;
+      };
+      
+      // Try to find immediately
+      if (!findScrollContainer()) {
+        // If not found, try after a short delay (component might not be mounted yet)
+        const timeout = setTimeout(() => {
+          findScrollContainer();
+        }, 100);
+        return () => clearTimeout(timeout);
+      }
+    }, []);
+    
+    // Prevent focus from causing scroll
+    useEffect(() => {
+      const preventFocusScroll = (e: FocusEvent) => {
+        // Only prevent scroll if it's an interactive element we control
+        const target = e.target as HTMLElement;
+        if (target && (
+          target.tagName === 'INPUT' || 
+          target.tagName === 'BUTTON' ||
+          target.closest('button') ||
+          target.closest('input[type="range"]') ||
+          target.closest('input[type="checkbox"]')
+        )) {
+          // Save scroll position before focus
+          if (scrollContainerRef.current) {
+            scrollPositionRef.current = scrollContainerRef.current.scrollTop;
+          }
+          // Restore after a brief delay
+          requestAnimationFrame(() => {
+            if (scrollContainerRef.current) {
+              scrollContainerRef.current.scrollTop = scrollPositionRef.current;
+            }
+          });
+        }
+      };
+      
+      document.addEventListener('focusin', preventFocusScroll);
+      return () => {
+        document.removeEventListener('focusin', preventFocusScroll);
+      };
+    }, []);
+    
+    // Preserve scroll position on all state updates
+    useEffect(() => {
+      if (scrollContainerRef.current) {
+        // Restore after render
+        requestAnimationFrame(() => {
+          if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = scrollPositionRef.current;
+          }
+        });
+      }
+    }, [sensitivityValue, voiceStyleValue, selectedVoiceAgent, isAiGuardianEnabled, divertCallPopupEnabled]);
+    
     return (
       <AppLayout hideTopNavbar fullWidth>
       <div className="flex flex-col gap-6 p-0">
         {/* Custom Header */}
         <div className="flex items-center justify-between">
           <button
-            onClick={() => router.back()}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              router.back();
+            }}
             className="text-white flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-white/10 transition-colors"
           >
             <span className="material-symbols-outlined text-white">
@@ -307,7 +417,11 @@ export default function ManagePage() {
             Smart Call Diversion
           </h2>
           <button
-            onClick={() => router.push('/settings')}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              router.push('/settings');
+            }}
             className="relative flex size-10 items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
           >
             {userSession?.profilePicture ? (
@@ -357,6 +471,11 @@ export default function ManagePage() {
                     type="checkbox"
                     checked={isAiGuardianEnabled}
                     onChange={(e) => {
+                      e.preventDefault();
+                      // Save scroll position before state update
+                      if (scrollContainerRef.current) {
+                        scrollPositionRef.current = scrollContainerRef.current.scrollTop;
+                      }
                       const newValue = e.target.checked;
                       setIsAiGuardianEnabled(newValue);
                       setDivertCallPopupEnabled(newValue);
@@ -366,6 +485,12 @@ export default function ManagePage() {
                         // Dispatch event to notify other components
                         window.dispatchEvent(new Event('divertCallPopupChanged'));
                       }
+                      // Restore scroll position after state update
+                      requestAnimationFrame(() => {
+                        if (scrollContainerRef.current) {
+                          scrollContainerRef.current.scrollTop = scrollPositionRef.current;
+                        }
+                      });
                     }}
                     className="peer sr-only"
                   />
@@ -386,7 +511,11 @@ export default function ManagePage() {
                       </span>
                     </div>
                     <button 
-                      onClick={() => router.push('/call-logs')}
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        router.push('/call-logs');
+                      }}
                       className="text-xs font-medium text-[#94a3b8] hover:text-white transition-colors flex items-center gap-1"
                     >
                       View Log{' '}
@@ -474,7 +603,11 @@ export default function ManagePage() {
           {/* Custom Diversion Message */}
           <div className="rounded-xl border border-white/5 bg-[#131b26] p-1 shadow-lg mb-4">
             <button 
-              onClick={() => router.push('/manage/diversion-messages')}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                router.push('/manage/diversion-messages');
+              }}
               className="flex w-full items-center justify-between p-4 hover:bg-white/5 rounded-lg transition-colors group"
             >
               <div className="flex items-center gap-4">
@@ -527,7 +660,8 @@ export default function ManagePage() {
               <div className="flex flex-col gap-3">
                 {/* Default Voice */}
                 <button
-                  onClick={() => handleVoiceAgentChange('default')}
+                  type="button"
+                  onClick={(e) => handleVoiceAgentChange(e, 'default')}
                   className={`relative p-2 rounded-lg border transition-all shadow-[0_0_20px_rgba(38,217,187,0.05)] ${
                     selectedVoiceAgent === 'default'
                       ? 'border-[#26d9bb] bg-[#26d9bb]/10 cursor-pointer'
@@ -564,7 +698,8 @@ export default function ManagePage() {
 
                 {/* Female - Laura */}
                 <button
-                  onClick={() => handleVoiceAgentChange('female')}
+                  type="button"
+                  onClick={(e) => handleVoiceAgentChange(e, 'female')}
                   className={`relative p-2 rounded-lg border transition-all group ${
                     selectedVoiceAgent === 'female'
                       ? 'border-[#26d9bb] bg-[#26d9bb]/10 shadow-[0_0_20px_rgba(38,217,187,0.05)] cursor-pointer'
@@ -609,7 +744,8 @@ export default function ManagePage() {
 
                 {/* Male - Roger */}
                 <button
-                  onClick={() => handleVoiceAgentChange('male')}
+                  type="button"
+                  onClick={(e) => handleVoiceAgentChange(e, 'male')}
                   className={`relative p-2 rounded-lg border transition-all group ${
                     selectedVoiceAgent === 'male'
                       ? 'border-[#26d9bb] bg-[#26d9bb]/10 shadow-[0_0_20px_rgba(38,217,187,0.05)] cursor-pointer'
@@ -681,6 +817,12 @@ export default function ManagePage() {
                   max="100"
                   value={voiceStyleValue}
                   onChange={handleVoiceStyleChange}
+                  onFocus={(e) => {
+                    // Save scroll position when slider gets focus
+                    if (scrollContainerRef.current) {
+                      scrollPositionRef.current = scrollContainerRef.current.scrollTop;
+                    }
+                  }}
                   className="absolute w-full h-6 opacity-0 cursor-pointer z-20"
                   style={{
                     background: 'transparent',
