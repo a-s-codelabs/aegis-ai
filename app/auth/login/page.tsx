@@ -123,7 +123,6 @@ export default function LoginPage() {
                     </span>
                   </div>
                 </div>
-              </div>
 
               <h1 className="mb-2 text-3xl font-bold text-white">Welcome Back</h1>
               <p className="text-base text-slate-400">
@@ -159,6 +158,7 @@ export default function LoginPage() {
                     />
                   </div>
                 </div>
+              </div>
 
                 <div className="space-y-1.5">
                   <label
