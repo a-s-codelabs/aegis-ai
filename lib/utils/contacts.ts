@@ -9,7 +9,7 @@ export interface Contact {
   phoneNumber: string;
 }
 
-const CONTACTS_STORAGE_KEY = 'anti-scam-contacts';
+const CONTACTS_STORAGE_KEY = 'aegis-ai-contacts';
 
 /**
  * Normalizes a phone number to a standard format for comparison

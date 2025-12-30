@@ -17,10 +17,10 @@ export default function HomePage() {
         <div className="flex flex-col items-center justify-center px-6 py-12 lg:py-0 lg:px-20 lg:basis-[60%]">
           <div className="w-full max-w-3xl space-y-6 text-left">
             <h1 className="text-5xl lg:text-6xl font-bold leading-tight tracking-tight text-[#26d9bb]">
-              Go to Anti-scam
+              Go to Aegis AI
             </h1>
             <p className="text-lg lg:text-xl text-slate-400 leading-relaxed">
-              Click and go to Anti-scam app
+              Click and go to Aegis AI app
             </p>
             <Link
               href="/app"

@@ -44,7 +44,7 @@ export default function AppEntryPage() {
           {/* Title section */}
           <div className="text-center space-y-3 mb-8">
             <h1 className="text-white text-[38px] font-black leading-tight tracking-tight drop-shadow-lg">
-              Anti-scam
+              Aegis AI
             </h1>
             <p className="text-slate-400 text-lg font-medium tracking-wide">
               Your Shield Against Fraud

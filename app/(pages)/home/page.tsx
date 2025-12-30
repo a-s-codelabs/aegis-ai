@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { MobileModal } from '@/components/ui/mobile-modal';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { getContacts, saveContacts, addContact as addContactUtil, normalizePhoneNumber } from '@/lib/utils/contacts';
 
 interface RecentCall {
   id: string;
@@ -36,6 +37,7 @@ interface Contact {
   initials: string;
   type: string;
   color: string;
+  phoneNumber?: string;
 }
 
 // Home Content Component (to be rendered inside iPhone)
@@ -72,43 +74,67 @@ function HomeContent() {
   const [recentCalls, setRecentCalls] = useState<RecentCall[]>([]);
   const [blockedNumbers, setBlockedNumbers] = useState<BlockedNumber[]>([]);
 
-  // Load recent calls and blocklist from localStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // Load recent calls from call logs
-      const callLogsData = localStorage.getItem('callLogs');
-      if (callLogsData) {
-        try {
-          const callLogs = JSON.parse(callLogsData);
-          // Convert call logs to recent calls format (show last 3)
-          const recent = callLogs.slice(0, 3).map((log: any, index: number) => {
-            const timestamp = new Date(log.timestamp);
-            const now = new Date();
-            const diffMs = now.getTime() - timestamp.getTime();
-            const diffMins = Math.floor(diffMs / 60000);
-            const diffHours = Math.floor(diffMins / 60);
-            
-            let timeAgo = '';
-            if (diffMins < 1) {
-              timeAgo = 'Just now';
-            } else if (diffMins < 60) {
-              timeAgo = `${diffMins} ${diffMins === 1 ? 'min' : 'mins'} ago`;
-            } else {
-              timeAgo = `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
-            }
+      // Load recent calls and blocklist from localStorage
+      useEffect(() => {
+        if (typeof window !== 'undefined') {
+          // Function to load and format recent calls
+          const loadRecentCalls = () => {
+            const callLogsData = localStorage.getItem('callLogs');
+            if (callLogsData) {
+              try {
+                const callLogs = JSON.parse(callLogsData);
+                // Sort by timestamp descending (newest first) before taking first 6
+                const sortedLogs = [...callLogs].sort((a: any, b: any) => {
+                  const timeA = new Date(a.timestamp).getTime();
+                  const timeB = new Date(b.timestamp).getTime();
+                  return timeB - timeA; // Descending order (newest first)
+                });
+                
+                // Convert call logs to recent calls format (show first 6 after sorting)
+                const recent: RecentCall[] = sortedLogs.slice(0, 6).map((log: any, index: number) => {
+                  const timestamp = new Date(log.timestamp);
+                  const now = new Date();
+                  const diffMs = now.getTime() - timestamp.getTime();
+                  const diffMins = Math.floor(diffMs / 60000);
+                  const diffHours = Math.floor(diffMins / 60);
+                  
+                  let timeAgo = '';
+                  if (diffMins < 1) {
+                    timeAgo = 'Just now';
+                  } else if (diffMins < 60) {
+                    timeAgo = `${diffMins} ${diffMins === 1 ? 'min' : 'mins'} ago`;
+                  } else {
+                    timeAgo = `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+                  }
 
-            return {
-              id: log.id || `call-${index}`,
-              number: log.number,
-              status: log.status === 'scam' ? 'spam' : log.status === 'safe' ? 'incoming' : 'outgoing',
-              timeAgo,
-            };
-          });
-          setRecentCalls(recent);
-        } catch (error) {
-          console.error('[Home] Error parsing call logs:', error);
-        }
-      }
+                  // Determine status with explicit type
+                  let status: 'spam' | 'incoming' | 'outgoing';
+                  if (log.status === 'scam') {
+                    status = 'spam';
+                  } else if (log.status === 'safe') {
+                    status = 'incoming';
+                  } else {
+                    status = 'outgoing';
+                  }
+
+                  return {
+                    id: log.id || `call-${index}`,
+                    number: log.number,
+                    status,
+                    timeAgo,
+                  };
+                });
+                setRecentCalls(recent);
+              } catch (error) {
+                console.error('[Home] Error parsing call logs:', error);
+              }
+            } else {
+              setRecentCalls([]);
+            }
+          };
+
+          // Load recent calls initially
+          loadRecentCalls();
 
       // Load blocklist from localStorage
       const blocklistData = localStorage.getItem('blocklist');
@@ -140,39 +166,8 @@ function HomeContent() {
 
       // Listen for storage changes and custom events to update in real-time
       const handleStorageChange = () => {
-        // Reload recent calls
-        const callLogsData = localStorage.getItem('callLogs');
-        if (callLogsData) {
-          try {
-            const callLogs = JSON.parse(callLogsData);
-            const recent = callLogs.slice(0, 3).map((log: any, index: number) => {
-              const timestamp = new Date(log.timestamp);
-              const now = new Date();
-              const diffMs = now.getTime() - timestamp.getTime();
-              const diffMins = Math.floor(diffMs / 60000);
-              const diffHours = Math.floor(diffMins / 60);
-              
-              let timeAgo = '';
-              if (diffMins < 1) {
-                timeAgo = 'Just now';
-              } else if (diffMins < 60) {
-                timeAgo = `${diffMins} ${diffMins === 1 ? 'min' : 'mins'} ago`;
-              } else {
-                timeAgo = `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
-              }
-
-              return {
-                id: log.id || `call-${index}`,
-                number: log.number,
-                status: log.status === 'scam' ? 'spam' : log.status === 'safe' ? 'incoming' : 'outgoing',
-                timeAgo,
-              };
-            });
-            setRecentCalls(recent);
-          } catch (error) {
-            console.error('[Home] Error parsing call logs:', error);
-          }
-        }
+        // Reload recent calls (using the same function to ensure consistent sorting)
+        loadRecentCalls();
 
         // Reload blocklist
         const blocklistData = localStorage.getItem('blocklist');
@@ -223,6 +218,11 @@ function HomeContent() {
   const [newWhitelistName, setNewWhitelistName] = useState('');
   const [newWhitelistNumber, setNewWhitelistNumber] = useState('');
   const [editingPhoneNumber, setEditingPhoneNumber] = useState('');
+
+  // Contact management state
+  const [isAddContactDialogOpen, setIsAddContactDialogOpen] = useState(false);
+  const [newContactName, setNewContactName] = useState('');
+  const [newContactPhoneNumber, setNewContactPhoneNumber] = useState('');
 
   // Load whitelist items from localStorage on mount and listen for changes
   const loadWhitelistItems = () => {
@@ -285,22 +285,65 @@ function HomeContent() {
   // Note: Saving to localStorage is now handled directly in handleAddWhitelist
   // to avoid race conditions and ensure immediate persistence
 
-  const [contacts] = useState<Contact[]>([
-    {
-      id: '1',
-      name: 'John Doe',
-      initials: 'JD',
-      type: 'Mobile • Protected',
-      color: 'purple',
-    },
-    {
-      id: '2',
-      name: 'Alice Smith',
-      initials: 'AS',
-      type: 'Work • Protected',
-      color: 'blue',
-    },
-  ]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+
+  // Helper function to generate initials from name
+  const generateInitials = (name: string): string => {
+    const words = name.trim().split(/\s+/);
+    if (words.length >= 2) {
+      return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
+  // Helper function to generate color from name
+  const generateColor = (name: string): string => {
+    const colors = ['purple', 'blue', 'green', 'orange', 'pink', 'indigo', 'teal'];
+    const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[hash % colors.length];
+  };
+
+  // Load contacts from localStorage
+  const loadContacts = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedContacts = getContacts();
+        // Convert utility Contact format to display Contact format
+        const displayContacts: Contact[] = savedContacts.map((contact) => ({
+          id: contact.id,
+          name: contact.name,
+          initials: generateInitials(contact.name),
+          type: contact.phoneNumber ? `${contact.phoneNumber} • Protected` : 'Protected',
+          color: generateColor(contact.name),
+          phoneNumber: contact.phoneNumber,
+        }));
+        setContacts(displayContacts);
+      } catch (error) {
+        console.error('[Contacts] Error loading contacts:', error);
+        setContacts([]);
+      }
+    }
+  };
+
+  // Load contacts on mount and listen for changes
+  useEffect(() => {
+    loadContacts();
+
+    // Listen for storage changes to reload contacts (for cross-tab synchronization)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'aegis-ai-contacts') {
+        setTimeout(() => {
+          loadContacts();
+        }, 0);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
   const getContactColor = (color: string) => {
     switch (color) {
@@ -308,9 +351,55 @@ function HomeContent() {
         return 'bg-purple-500/20 text-purple-400';
       case 'blue':
         return 'bg-blue-500/20 text-blue-400';
+      case 'green':
+        return 'bg-green-500/20 text-green-400';
+      case 'orange':
+        return 'bg-orange-500/20 text-orange-400';
+      case 'pink':
+        return 'bg-pink-500/20 text-pink-400';
+      case 'indigo':
+        return 'bg-indigo-500/20 text-indigo-400';
+      case 'teal':
+        return 'bg-teal-500/20 text-teal-400';
       default:
         return 'bg-gray-500/20 text-gray-400';
     }
+  };
+
+  // Handle adding a new contact
+  const handleAddContact = () => {
+    const trimmedName = newContactName.trim();
+    
+    if (!trimmedName) {
+      console.error('[Contacts] Name is required');
+      return;
+    }
+
+    const trimmedPhoneNumber = newContactPhoneNumber.trim();
+    
+    if (!trimmedPhoneNumber) {
+      console.error('[Contacts] Phone number is required');
+      return;
+    }
+
+    // Normalize phone number
+    const normalizedPhoneNumber = normalizePhoneNumber(trimmedPhoneNumber);
+
+    console.log('[Contacts] Adding contact:', { name: trimmedName, phoneNumber: normalizedPhoneNumber });
+
+    // Add contact using utility function
+    const newContact = addContactUtil({
+      name: trimmedName,
+      phoneNumber: normalizedPhoneNumber,
+    });
+
+    // Reload contacts to update UI
+    loadContacts();
+
+    // Clear form and close dialog
+    setNewContactName('');
+    setNewContactPhoneNumber('');
+    setIsAddContactDialogOpen(false);
   };
 
   const handleAddWhitelist = () => {
@@ -492,64 +581,74 @@ function HomeContent() {
                 </button>
               </div>
               <div className="bg-[#151e32] border border-gray-800 rounded-xl overflow-hidden shadow-lg">
-                {recentCalls.map((call, index) => (
-                  <div
-                    key={call.id}
-                    className={`p-3 flex items-center gap-3 hover:bg-gray-800/30 transition-colors cursor-pointer ${
-                      index < recentCalls.length - 1
-                        ? 'border-b border-gray-800/50'
-                        : ''
-                    }`}
-                  >
+                {recentCalls.length === 0 ? (
+                  <div className="p-6 text-center">
+                    <span className="material-symbols-outlined text-gray-500 text-4xl mb-2 block">
+                      call_missed
+                    </span>
+                    <p className="text-gray-400 text-sm">No recent calls yet</p>
+                    <p className="text-gray-500 text-xs mt-1">Incoming calls will appear here</p>
+                  </div>
+                ) : (
+                  recentCalls.map((call, index) => (
                     <div
-                      className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
-                        call.status === 'spam'
-                          ? 'bg-red-500/10'
-                          : call.status === 'outgoing'
-                          ? 'bg-blue-500/10'
-                          : 'bg-emerald-500/10'
+                      key={call.id}
+                      className={`p-3 flex items-center gap-3 hover:bg-gray-800/30 transition-colors cursor-pointer ${
+                        index < recentCalls.length - 1
+                          ? 'border-b border-gray-800/50'
+                          : ''
                       }`}
                     >
-                      <span
-                        className={`material-symbols-outlined text-[18px] ${
+                      <div
+                        className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
                           call.status === 'spam'
-                            ? 'text-red-500'
+                            ? 'bg-red-500/10'
                             : call.status === 'outgoing'
-                            ? 'text-blue-500'
-                            : 'text-emerald-500'
+                            ? 'bg-blue-500/10'
+                            : 'bg-emerald-500/10'
                         }`}
                       >
-                        {call.status === 'spam'
-                          ? 'call_missed'
-                          : call.status === 'outgoing'
-                          ? 'call_made'
-                          : 'call_received'}
+                        <span
+                          className={`material-symbols-outlined text-[18px] ${
+                            call.status === 'spam'
+                              ? 'text-red-500'
+                              : call.status === 'outgoing'
+                              ? 'text-blue-500'
+                              : 'text-emerald-500'
+                          }`}
+                        >
+                          {call.status === 'spam'
+                            ? 'call_missed'
+                            : call.status === 'outgoing'
+                            ? 'call_made'
+                            : 'call_received'}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-gray-100 text-sm truncate">
+                          {call.name || call.number}
+                        </h4>
+                        <p
+                          className={`text-[10px] truncate ${
+                            call.status === 'spam'
+                              ? 'text-red-400'
+                              : 'text-gray-400'
+                          }`}
+                        >
+                          {call.status === 'spam'
+                            ? 'Potential Spam'
+                            : call.status === 'outgoing'
+                            ? 'Outgoing'
+                            : 'Incoming'}{' '}
+                          • {call.timeAgo}
+                        </p>
+                      </div>
+                      <span className="material-symbols-outlined text-gray-600 text-base shrink-0">
+                        chevron_right
                       </span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-gray-100 text-sm truncate">
-                        {call.name || call.number}
-                      </h4>
-                      <p
-                        className={`text-[10px] truncate ${
-                          call.status === 'spam'
-                            ? 'text-red-400'
-                            : 'text-gray-400'
-                        }`}
-                      >
-                        {call.status === 'spam'
-                          ? 'Potential Spam'
-                          : call.status === 'outgoing'
-                          ? 'Outgoing'
-                          : 'Incoming'}{' '}
-                        • {call.timeAgo}
-                      </p>
-                    </div>
-                    <span className="material-symbols-outlined text-gray-600 text-base shrink-0">
-                      chevron_right
-                    </span>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </TabsContent>
 
@@ -656,7 +755,10 @@ function HomeContent() {
                     <h3 className="text-[11px] font-semibold text-gray-300 uppercase tracking-wider">
                       Contacts
                     </h3>
-                    <button className="flex items-center gap-1 text-[10px] text-[#26d9bb] hover:text-[#20c4a8] font-medium transition-colors">
+                    <button 
+                      onClick={() => setIsAddContactDialogOpen(true)}
+                      className="flex items-center gap-1 text-[10px] text-[#26d9bb] hover:text-[#20c4a8] font-medium transition-colors"
+                    >
                       <span className="material-symbols-outlined text-[14px]">
                         person_add
                       </span>
@@ -664,31 +766,41 @@ function HomeContent() {
                     </button>
                   </div>
                   <div className="bg-[#151e32] border border-gray-800 rounded-xl overflow-hidden shadow-lg">
-                    {contacts.map((contact, index) => (
-                      <div
-                        key={contact.id}
-                        className={`p-3 hover:bg-gray-800/30 transition-colors flex items-center gap-3 ${
-                          index < contacts.length - 1
-                            ? 'border-b border-gray-800/50'
-                            : ''
-                        }`}
-                      >
-                        <div
-                          className={`w-9 h-9 rounded-full ${getContactColor(
-                            contact.color
-                          )} flex items-center justify-center text-xs font-bold shrink-0`}
-                        >
-                          {contact.initials}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-sm font-medium text-gray-100 truncate">
-                            {contact.name}
-                          </h4>
-                          <p className="text-[10px] text-gray-500">{contact.type}</p>
-                        </div>
-                        <span className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)] shrink-0"></span>
+                    {contacts.length === 0 ? (
+                      <div className="p-6 text-center">
+                        <span className="material-symbols-outlined text-gray-500 text-4xl mb-2 block">
+                          contacts
+                        </span>
+                        <p className="text-gray-400 text-sm">No contacts yet</p>
+                        <p className="text-gray-500 text-xs mt-1">Add contacts to get started</p>
                       </div>
-                    ))}
+                    ) : (
+                      contacts.map((contact, index) => (
+                        <div
+                          key={contact.id}
+                          className={`p-3 hover:bg-gray-800/30 transition-colors flex items-center gap-3 ${
+                            index < contacts.length - 1
+                              ? 'border-b border-gray-800/50'
+                              : ''
+                          }`}
+                        >
+                          <div
+                            className={`w-9 h-9 rounded-full ${getContactColor(
+                              contact.color
+                            )} flex items-center justify-center text-xs font-bold shrink-0`}
+                          >
+                            {contact.initials}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-medium text-gray-100 truncate">
+                              {contact.name}
+                            </h4>
+                            <p className="text-[10px] text-gray-500">{contact.type}</p>
+                          </div>
+                          <span className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)] shrink-0"></span>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </>
               ) : (
@@ -916,6 +1028,100 @@ function HomeContent() {
           </div>
         </form>
       </MobileModal>
+
+      {/* Add Contact Dialog */}
+      <MobileModal
+        open={isAddContactDialogOpen}
+        onOpenChange={setIsAddContactDialogOpen}
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (newContactName.trim() && newContactPhoneNumber.trim()) {
+              handleAddContact();
+            }
+          }}
+          className="space-y-4"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold text-white">Add New Contact</h2>
+            <p className="text-sm text-gray-400">
+              Add a contact to your list. Calls from these numbers will be protected.
+            </p>
+          </div>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-200">
+                Name <span className="text-red-400">*</span>
+              </label>
+              <Input
+                placeholder="e.g., John Doe"
+                value={newContactName}
+                onChange={(e) => setNewContactName(e.target.value)}
+                className="bg-[#0B1121] border-gray-700 text-white"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-200">
+                Phone Number <span className="text-red-400">*</span>
+              </label>
+              <Input
+                type="tel"
+                placeholder="+1 (555) 123-4567"
+                value={newContactPhoneNumber}
+                onChange={(e) => {
+                  setNewContactPhoneNumber(e.target.value);
+                }}
+                onInput={(e) => {
+                  const target = e.target as HTMLInputElement;
+                  setNewContactPhoneNumber(target.value);
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+                onFocus={(e) => {
+                  e.stopPropagation();
+                }}
+                className="bg-[#0B1121] border-gray-700 text-white"
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (newContactName.trim() && newContactPhoneNumber.trim()) {
+                      handleAddContact();
+                    }
+                  }
+                }}
+                autoComplete="tel"
+              />
+            </div>
+          </div>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsAddContactDialogOpen(false);
+                setNewContactName('');
+                setNewContactPhoneNumber('');
+              }}
+              className="border-gray-700 text-gray-300 hover:bg-gray-800"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              className="bg-[#26d9bb] text-white hover:bg-[#20c4a8] disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!newContactName.trim() || !newContactPhoneNumber.trim()}
+            >
+              Add Contact
+            </Button>
+          </div>
+        </form>
+      </MobileModal>
     </AppLayout>
   );
 }
@@ -938,10 +1144,10 @@ export default function HomePage() {
   const leftContent = (
     <>
       <h1 className="text-5xl lg:text-6xl font-bold leading-tight tracking-tight text-[#26d9bb]">
-        Anti-scam Home
+        Aegis AI Home
       </h1>
       <p className="text-lg lg:text-xl text-slate-400 leading-relaxed">
-        Welcome to your Anti-scam dashboard. Here you can manage your call protection settings and monitor suspicious activity.
+        Welcome to your Aegis AI dashboard. Here you can manage your call protection settings and monitor suspicious activity.
       </p>
       <div className="space-y-4 text-base lg:text-lg text-slate-300">
         <p>

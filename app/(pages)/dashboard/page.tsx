@@ -854,7 +854,7 @@ function IncomingCallContent({
             </button>
           </div>
 
-          {/* Powered by Anti-Scam AI */}
+          {/* Powered by Aegis AI */}
           <div className="mt-4 pt-4 flex items-center justify-center gap-1.5 opacity-50">
             <span
               className="material-symbols-outlined text-xs text-[#26d9bb]"
@@ -863,7 +863,7 @@ function IncomingCallContent({
               verified_user
             </span>
             <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-              Powered by Anti-Scam AI
+              Powered by Aegis AI
             </p>
           </div>
         </div>
@@ -2229,7 +2229,7 @@ export default function DashboardPage() {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-4xl lg:text-5xl font-bold leading-tight tracking-tight text-[#26d9bb]">
-            Anti-Scam Dashboard
+            Aegis AI Dashboard
           </h1>
         </div>
         <p className="text-lg lg:text-xl text-slate-400 leading-relaxed">

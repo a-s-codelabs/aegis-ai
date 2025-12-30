@@ -326,7 +326,7 @@ export default function SettingsPage() {
           {/* App Information */}
           <section className="w-full">
             <p className="text-xs text-gray-500 text-center">
-              • Anti-Scam Protection Active
+              • Aegis AI Protection Active
             </p>
           </section>
         </div>
@@ -353,7 +353,7 @@ export default function SettingsPage() {
                   Sign out?
                 </h3>
                 <p className="text-sm text-gray-400">
-                  You'll need to sign in again to continue using Anti-Scam protection.
+                  You'll need to sign in again to continue using Aegis AI protection.
                 </p>
               </div>
 

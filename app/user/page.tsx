@@ -921,7 +921,7 @@ export default function UserDashboard() {
               <Shield className="h-6 w-6 text-primary-foreground" />
             </div>
             <span className="text-xl font-semibold text-foreground">
-              Anti-Scam
+              Aegis AI
             </span>
           </Link>
           <nav className="flex items-center gap-6">

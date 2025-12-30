@@ -31,7 +31,7 @@ export default function ManagePage() {
   const [voiceStyleValue, setVoiceStyleValue] = useState(65); // 0-33: Direct, 34-66: Neutral, 67-100: Empathetic
   const [selectedVoiceAgent, setSelectedVoiceAgent] =
     useState<VoicePreference>('default');
-  const [currentDiversionMessage, setCurrentDiversionMessage] = useState('Standard Anti-Scam Warning');
+  const [currentDiversionMessage, setCurrentDiversionMessage] = useState('Standard Aegis AI Warning');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -96,12 +96,12 @@ export default function ManagePage() {
       // Load current diversion message name
       const savedMessageId = localStorage.getItem('diversionMessageId') || 'standard';
       const messageNames: Record<string, string> = {
-        standard: 'Standard Anti-Scam Warning',
+        standard: 'Standard Aegis AI Warning',
         firm: 'Firm Security Notice',
         brief: 'Brief Security Alert',
         polite: 'Polite Security Notice',
       };
-      setCurrentDiversionMessage(messageNames[savedMessageId] || 'Standard Anti-Scam Warning');
+      setCurrentDiversionMessage(messageNames[savedMessageId] || 'Standard Aegis AI Warning');
 
       // Load divert call popup preference from localStorage (this controls both toggles)
       const savedDivertCallPopup = localStorage.getItem('divertCallPopupEnabled');
@@ -174,12 +174,12 @@ export default function ManagePage() {
       const handleDiversionMessageChange = () => {
         const savedMessageId = localStorage.getItem('diversionMessageId') || 'standard';
         const messageNames: Record<string, string> = {
-          standard: 'Standard Anti-Scam Warning',
+          standard: 'Standard Aegis AI Warning',
           firm: 'Firm Security Notice',
           brief: 'Brief Security Alert',
           polite: 'Polite Security Notice',
         };
-        setCurrentDiversionMessage(messageNames[savedMessageId] || 'Standard Anti-Scam Warning');
+        setCurrentDiversionMessage(messageNames[savedMessageId] || 'Standard Aegis AI Warning');
       };
       
       window.addEventListener('diversionMessageChanged', handleDiversionMessageChange);

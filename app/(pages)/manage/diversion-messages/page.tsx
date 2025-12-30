@@ -24,7 +24,7 @@ interface DiversionMessage {
 const DIVERSION_MESSAGES: DiversionMessage[] = [
   {
     id: 'standard',
-    name: 'Standard Anti-Scam Warning',
+    name: 'Standard Aegis AI Warning',
     message: 'This call cannot continue due to security verification issues. No further information will be shared. Please contact the account holder through official channels. Goodbye.',
     description: 'Professional and neutral message for general use',
     isDefault: true,

@@ -9,7 +9,7 @@ interface IPhoneMockupProps {
 
 /**
  * iPhone mockup component showing the home screen with app icons.
- * Clicking the Anti-scam app icon navigates to /app page.
+ * Clicking the Aegis AI app icon navigates to /app page.
  */
 export function IPhoneMockup({ onAppClick }: IPhoneMockupProps) {
   const router = useRouter()
@@ -108,7 +108,7 @@ export function IPhoneMockup({ onAppClick }: IPhoneMockupProps) {
               <span className="text-white text-2xl">💬</span>
             </div>
 
-            {/* Row 4 - Anti-scam App (Clickable) */}
+            {/* Row 4 - Aegis AI App (Clickable) */}
             <div
               onClick={handleAppClick}
               className="w-16 h-16 bg-gradient-to-br from-slate-800 to-slate-900 rounded-[1.25rem] flex items-center justify-center cursor-pointer hover:scale-110 active:scale-95 transition-all duration-200 shadow-xl shadow-black/30 border border-slate-700/50 group relative"
