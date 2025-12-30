@@ -196,15 +196,6 @@ export default function LoginPage() {
                       </button>
                     </div>
                   </div>
-
-                  <div className="flex justify-end pt-1">
-                    <button
-                      type="button"
-                      className="text-sm font-medium text-[#26d9bb] transition-colors hover:text-teal-300"
-                    >
-                      Forgot Password?
-                    </button>
-                  </div>
                 </div>
               </div>
 
@@ -286,7 +277,7 @@ export default function LoginPage() {
             help
           </span>
           <div>
-            <strong className="text-[#26d9bb]">Need Help?</strong> If you forgot your password, click "Forgot Password?" to reset it. Don't have an account? Click "Register" to create one.
+            <strong className="text-[#26d9bb]">Need Help?</strong> Don't have an account? Click "Register" to create one.
           </div>
         </div>
       </div>

@@ -44,10 +44,29 @@ interface Contact {
 function HomeContent() {
   const router = useRouter();
   const [contactAccessEnabled, setContactAccessEnabled] = useState(true);
+  const [isNewUser, setIsNewUser] = useState(false);
 
-  // Load contact access preference from localStorage
+  // Check if user is new and load contact access preference from localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      // Check if user is newly registered
+      const newUserFlag = localStorage.getItem('isNewUser');
+      if (newUserFlag === 'true') {
+        setIsNewUser(true);
+        // Clear the flag after checking
+        localStorage.removeItem('isNewUser');
+      }
+
+      // Check if user has any call logs, blocklist, or whitelist
+      const callLogs = localStorage.getItem('callLogs');
+      const blocklist = localStorage.getItem('blocklist');
+      const whitelist = localStorage.getItem('whitelistItems');
+      
+      // If no call activity exists, treat as new user
+      if (!callLogs || callLogs === '[]' || (!blocklist || blocklist === '[]') && (!whitelist || whitelist === '[]')) {
+        setIsNewUser(true);
+      }
+
       const savedContactAccess = localStorage.getItem('contactAccessEnabled');
       if (savedContactAccess !== null) {
         setContactAccessEnabled(savedContactAccess === 'true');
@@ -77,9 +96,17 @@ function HomeContent() {
       // Load recent calls and blocklist from localStorage
       useEffect(() => {
         if (typeof window !== 'undefined') {
-          // Seed dummy data if contacts and blocklist are empty
-          seedDummyContacts();
-          seedDummyBlocklist();
+          // Only seed dummy data if user is not new and has contact access enabled
+          const contactAccess = localStorage.getItem('contactAccessEnabled');
+          const hasContactAccess = contactAccess === null || contactAccess === 'true';
+          
+          if (!isNewUser) {
+            // Only seed contacts if contact access is enabled
+            if (hasContactAccess) {
+              seedDummyContacts();
+            }
+            seedDummyBlocklist();
+          }
 
           // Function to load and format recent calls
           const loadRecentCalls = () => {
@@ -319,8 +346,13 @@ function HomeContent() {
   // Load contacts on mount and listen for changes
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // Seed dummy contacts if empty
-      seedDummyContacts();
+      // Only seed dummy contacts if contact access is enabled
+      const contactAccess = localStorage.getItem('contactAccessEnabled');
+      const hasContactAccess = contactAccess === null || contactAccess === 'true';
+      
+      if (hasContactAccess) {
+        seedDummyContacts();
+      }
       loadContacts();
     }
 
@@ -537,26 +569,30 @@ function HomeContent() {
           </section>
 
           {/* Tabs Navigation */}
-          <Tabs defaultValue="recent-calls" className="w-full">
+          <Tabs defaultValue={isNewUser ? "contacts" : "recent-calls"} className="w-full">
             <TabsList className="w-full justify-start bg-transparent p-0 h-auto border-b border-gray-800/50 rounded-none overflow-x-auto scrollbar-hide flex-nowrap sticky top-0 bg-[#0B1121]/95 backdrop-blur-sm z-10">
-              <TabsTrigger
-                value="recent-calls"
-                className="data-[state=active]:bg-transparent data-[state=active]:text-[#26d9bb] data-[state=active]:border-b-2 data-[state=active]:border-[#26d9bb] text-gray-400 border-b-2 border-transparent rounded-none px-3 py-2 text-[11px] font-medium transition-all whitespace-nowrap flex-shrink-0"
-              >
-                Recent Calls
-              </TabsTrigger>
-              <TabsTrigger
-                value="block-list"
-                className="data-[state=active]:bg-transparent data-[state=active]:text-[#26d9bb] data-[state=active]:border-b-2 data-[state=active]:border-[#26d9bb] text-gray-400 border-b-2 border-transparent rounded-none px-3 py-2 text-[11px] font-medium transition-all whitespace-nowrap flex-shrink-0"
-              >
-                Block List
-              </TabsTrigger>
-              <TabsTrigger
-                value="whitelist"
-                className="data-[state=active]:bg-transparent data-[state=active]:text-[#26d9bb] data-[state=active]:border-b-2 data-[state=active]:border-[#26d9bb] text-gray-400 border-b-2 border-transparent rounded-none px-3 py-2 text-[11px] font-medium transition-all whitespace-nowrap flex-shrink-0"
-              >
-                Whitelist
-              </TabsTrigger>
+              {!isNewUser && (
+                <>
+                  <TabsTrigger
+                    value="recent-calls"
+                    className="data-[state=active]:bg-transparent data-[state=active]:text-[#26d9bb] data-[state=active]:border-b-2 data-[state=active]:border-[#26d9bb] text-gray-400 border-b-2 border-transparent rounded-none px-3 py-2 text-[11px] font-medium transition-all whitespace-nowrap flex-shrink-0"
+                  >
+                    Recent Calls
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="block-list"
+                    className="data-[state=active]:bg-transparent data-[state=active]:text-[#26d9bb] data-[state=active]:border-b-2 data-[state=active]:border-[#26d9bb] text-gray-400 border-b-2 border-transparent rounded-none px-3 py-2 text-[11px] font-medium transition-all whitespace-nowrap flex-shrink-0"
+                  >
+                    Block List
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="whitelist"
+                    className="data-[state=active]:bg-transparent data-[state=active]:text-[#26d9bb] data-[state=active]:border-b-2 data-[state=active]:border-[#26d9bb] text-gray-400 border-b-2 border-transparent rounded-none px-3 py-2 text-[11px] font-medium transition-all whitespace-nowrap flex-shrink-0"
+                  >
+                    Whitelist
+                  </TabsTrigger>
+                </>
+              )}
               <TabsTrigger
                 value="contacts"
                 className="data-[state=active]:bg-transparent data-[state=active]:text-[#26d9bb] data-[state=active]:border-b-2 data-[state=active]:border-[#26d9bb] text-gray-400 border-b-2 border-transparent rounded-none px-3 py-2 text-[11px] font-medium transition-all whitespace-nowrap flex-shrink-0"
@@ -565,8 +601,9 @@ function HomeContent() {
               </TabsTrigger>
             </TabsList>
 
-            {/* Recent Calls Tab */}
-            <TabsContent value="recent-calls" className="mt-4 space-y-4">
+            {/* Recent Calls Tab - Only show if not new user */}
+            {!isNewUser && (
+              <TabsContent value="recent-calls" className="mt-4 space-y-4">
               <div className="flex items-center justify-between mb-2 px-1">
                 <h3 className="text-[11px] font-semibold text-gray-300 uppercase tracking-wider">
                   Latest Activity
@@ -646,9 +683,11 @@ function HomeContent() {
                 )}
               </div>
             </TabsContent>
+            )}
 
-            {/* Block List Tab */}
-            <TabsContent value="block-list" className="mt-4 space-y-4">
+            {/* Block List Tab - Only show if not new user */}
+            {!isNewUser && (
+              <TabsContent value="block-list" className="mt-4 space-y-4">
               <div className="flex items-center justify-between mb-2 px-1">
                 <h3 className="text-[11px] font-semibold text-gray-300 uppercase tracking-wider">
                   Block List
@@ -686,9 +725,11 @@ function HomeContent() {
                 ))}
               </div>
             </TabsContent>
+            )}
 
-            {/* Whitelist Tab */}
-            <TabsContent value="whitelist" className="mt-4 space-y-4">
+            {/* Whitelist Tab - Only show if not new user */}
+            {!isNewUser && (
+              <TabsContent value="whitelist" className="mt-4 space-y-4">
               <div className="flex items-center justify-between mb-2 px-1">
                 <h3 className="text-[11px] font-semibold text-gray-300 uppercase tracking-wider">
                   Whitelist
@@ -741,6 +782,7 @@ function HomeContent() {
                 </div>
               </div>
             </TabsContent>
+            )}
 
             {/* Contacts Tab */}
             <TabsContent value="contacts" className="mt-4 space-y-4">
