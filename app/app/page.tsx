@@ -45,10 +45,10 @@ export default function AppPage() {
         <div className="flex flex-col items-center justify-center px-6 py-12 lg:py-0 lg:px-20 lg:basis-[60%]">
           <div className="w-full max-w-3xl space-y-6 text-left">
             <h1 className="text-5xl lg:text-6xl font-bold leading-tight tracking-tight text-[#26d9bb]">
-              Redirecting to Anti-scam
+              Redirecting to Aegis AI
             </h1>
             <p className="text-lg lg:text-xl text-slate-400 leading-relaxed">
-              Please wait while we redirect you to the Anti-scam app...
+              Please wait while we redirect you to the Aegis AI app...
             </p>
             <div className="space-y-4 text-base lg:text-lg text-slate-300">
               <p>
@@ -94,7 +94,7 @@ export default function AppPage() {
                   {/* Branding text */}
                   <div className="flex flex-col items-center space-y-3 text-center">
                     <h1 className="text-3xl font-bold leading-tight tracking-tight text-[#26d9bb]">
-                      Anti-scam
+                      Aegis AI
                     </h1>
                     <p className="max-w-[220px] text-sm font-normal leading-relaxed tracking-wide text-slate-400">
                       Your Shield Against Fraud

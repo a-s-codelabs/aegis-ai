@@ -1,7 +1,7 @@
 {
-  "name": "anti-scam-backend",
+  "name": "aegis-ai-backend",
   "version": "1.0.0",
-  "description": "Backend API service for anti-scam mobile app",
+  "description": "Backend API service for Aegis AI mobile app",
   "main": "src/server.js",
   "type": "module",
   "scripts": {
@@ -10,7 +10,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
-    "anti-scam",
+    "aegis-ai",
     "api",
     "express"
   ],

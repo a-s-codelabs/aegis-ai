@@ -331,7 +331,7 @@ function HomeContent() {
 
     // Listen for storage changes to reload contacts (for cross-tab synchronization)
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'anti-scam-contacts') {
+      if (e.key === 'aegis-ai-contacts') {
         setTimeout(() => {
           loadContacts();
         }, 0);
@@ -1144,10 +1144,10 @@ export default function HomePage() {
   const leftContent = (
     <>
       <h1 className="text-5xl lg:text-6xl font-bold leading-tight tracking-tight text-[#26d9bb]">
-        Anti-scam Home
+        Aegis AI Home
       </h1>
       <p className="text-lg lg:text-xl text-slate-400 leading-relaxed">
-        Welcome to your Anti-scam dashboard. Here you can manage your call protection settings and monitor suspicious activity.
+        Welcome to your Aegis AI dashboard. Here you can manage your call protection settings and monitor suspicious activity.
       </p>
       <div className="space-y-4 text-base lg:text-lg text-slate-300">
         <p>

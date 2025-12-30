@@ -17,7 +17,7 @@ interface TopNavbarProps {
   isFullWidth?: boolean;
 }
 
-export function TopNavbar({ title = 'Anti-Scam', icon = 'shield', isFullWidth = false }: TopNavbarProps) {
+export function TopNavbar({ title = 'Aegis AI', icon = 'shield', isFullWidth = false }: TopNavbarProps) {
   const router = useRouter();
   const [userSession, setUserSession] = useState<UserSession | null>(null);
   const [userInitials, setUserInitials] = useState('U');

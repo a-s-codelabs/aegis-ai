@@ -1,4 +1,4 @@
-# Anti-Scam Project Structure
+# Aegis AI Project Structure
 
 This document explains the refactored project structure with separate frontend and backend.
 
@@ -12,7 +12,7 @@ The project has been refactored into two main parts:
 ## Directory Structure
 
 ```
-anti-scam/
+aegis-ai/
 ├── backend/                 # Backend API service (NEW)
 │   ├── src/
 │   │   ├── app.js          # Express app setup
@@ -98,7 +98,7 @@ npm run dev  # Development mode
 
 ## Mobile App
 
-**Location:** `/mobile/anti-scam`
+**Location:** `/mobile/aegis-ai`
 
 **Purpose:** Expo React Native mobile application
 

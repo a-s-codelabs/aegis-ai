@@ -152,7 +152,7 @@ export default function RegisterPage() {
               Create Account
             </h1>
             <p className="text-sm font-medium tracking-wide text-slate-400">
-              Register for Anti-scam protection
+              Register for Aegis AI protection
             </p>
           </div>
         </div>

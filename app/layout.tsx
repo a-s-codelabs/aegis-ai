@@ -10,7 +10,7 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] })
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Anti-Scam - AI-Powered Scam Call Detection",
+  title: "Aegis AI - AI-Powered Scam Call Detection",
   description: "Real-time AI-powered scam call detection to keep you safe from phone scams",
   generator: "v0.app",
   icons: {

@@ -1,6 +1,6 @@
-# Anti-Scam Backend API
+# Aegis AI Backend API
 
-Backend API service for the Anti-Scam mobile application. This service provides REST endpoints for AI-powered scam call detection.
+Backend API service for the Aegis AI mobile application. This service provides REST endpoints for AI-powered scam call detection.
 
 ## Features
 
