@@ -44,10 +44,29 @@ interface Contact {
 function HomeContent() {
   const router = useRouter();
   const [contactAccessEnabled, setContactAccessEnabled] = useState(true);
+  const [isNewUser, setIsNewUser] = useState(false);
 
-  // Load contact access preference from localStorage
+  // Check if user is new and load contact access preference from localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      // Check if user is newly registered
+      const newUserFlag = localStorage.getItem('isNewUser');
+      if (newUserFlag === 'true') {
+        setIsNewUser(true);
+        // Clear the flag after checking
+        localStorage.removeItem('isNewUser');
+      }
+
+      // Check if user has any call logs, blocklist, or whitelist
+      const callLogs = localStorage.getItem('callLogs');
+      const blocklist = localStorage.getItem('blocklist');
+      const whitelist = localStorage.getItem('whitelistItems');
+      
+      // If no call activity exists, treat as new user
+      if (!callLogs || callLogs === '[]' || (!blocklist || blocklist === '[]') && (!whitelist || whitelist === '[]')) {
+        setIsNewUser(true);
+      }
+
       const savedContactAccess = localStorage.getItem('contactAccessEnabled');
       if (savedContactAccess !== null) {
         setContactAccessEnabled(savedContactAccess === 'true');
@@ -77,9 +96,17 @@ function HomeContent() {
       // Load recent calls and blocklist from localStorage
       useEffect(() => {
         if (typeof window !== 'undefined') {
-          // Seed dummy data if contacts and blocklist are empty
-          seedDummyContacts();
-          seedDummyBlocklist();
+          // Only seed dummy data if user is not new and has contact access enabled
+          const contactAccess = localStorage.getItem('contactAccessEnabled');
+          const hasContactAccess = contactAccess === null || contactAccess === 'true';
+          
+          if (!isNewUser) {
+            // Only seed contacts if contact access is enabled
+            if (hasContactAccess) {
+              seedDummyContacts();
+            }
+            seedDummyBlocklist();
+          }
 
           // Function to load and format recent calls
           const loadRecentCalls = () => {
@@ -319,25 +346,55 @@ function HomeContent() {
   // Load contacts on mount and listen for changes
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // Seed dummy contacts if empty
-      seedDummyContacts();
-      loadContacts();
-    }
-
-    // Listen for storage changes to reload contacts (for cross-tab synchronization)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'aegis-ai-contacts') {
+      // Check contact access and seed dummy contacts if enabled
+      const contactAccess = localStorage.getItem('contactAccessEnabled');
+      const hasContactAccess = contactAccess === null || contactAccess === 'true';
+      
+      if (hasContactAccess) {
+        seedDummyContacts();
+        // Reload contacts after seeding
         setTimeout(() => {
           loadContacts();
-        }, 0);
+        }, 100);
+      } else {
+        loadContacts();
       }
-    };
+    }
 
-    window.addEventListener('storage', handleStorageChange);
+      // Listen for storage changes and contact access changes
+      const handleStorageChange = (e: StorageEvent) => {
+        if (e.key === 'aegis-ai-contacts' || e.key === 'contactAccessEnabled') {
+          setTimeout(() => {
+            const contactAccess = localStorage.getItem('contactAccessEnabled');
+            const hasContactAccess = contactAccess === null || contactAccess === 'true';
+            if (hasContactAccess) {
+              seedDummyContacts();
+            }
+            loadContacts();
+          }, 0);
+        }
+      };
 
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
+      const handleContactAccessChange = () => {
+        const contactAccess = localStorage.getItem('contactAccessEnabled');
+        const hasContactAccess = contactAccess === null || contactAccess === 'true';
+        if (hasContactAccess) {
+          seedDummyContacts();
+          setTimeout(() => {
+            loadContacts();
+          }, 100);
+        } else {
+          loadContacts();
+        }
+      };
+
+      window.addEventListener('storage', handleStorageChange);
+      window.addEventListener('contactAccessChanged', handleContactAccessChange);
+
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('contactAccessChanged', handleContactAccessChange);
+      };
   }, []);
 
   const getContactColor = (color: string) => {
@@ -657,8 +714,17 @@ function HomeContent() {
                   View All
                 </button>
               </div>
-              <div className="space-y-2.5">
-                {blockedNumbers.map((blocked) => (
+              {blockedNumbers.length === 0 ? (
+                <div className="bg-[#151e32] border border-gray-800 rounded-xl p-6 text-center">
+                  <span className="material-symbols-outlined text-gray-500 text-4xl mb-2 block">
+                    block
+                  </span>
+                  <p className="text-gray-400 text-sm">No blocked numbers yet</p>
+                  <p className="text-gray-500 text-xs mt-1">Blocked numbers will appear here</p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {blockedNumbers.map((blocked) => (
                   <div
                     key={blocked.id}
                     className="bg-[#1e293b] border border-gray-700/50 p-3 rounded-xl shadow-md flex items-center justify-between gap-2.5"
@@ -683,8 +749,9 @@ function HomeContent() {
                       Unblock
                     </button>
                   </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </TabsContent>
 
             {/* Whitelist Tab */}

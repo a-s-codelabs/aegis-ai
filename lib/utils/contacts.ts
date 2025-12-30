@@ -114,9 +114,19 @@ export function isNumberInContacts(phoneNumber: string): boolean {
 
 /**
  * Seeds dummy contacts if contacts list is empty
+ * Only seeds if contact access is enabled
  */
 export function seedDummyContacts(): void {
   if (typeof window === 'undefined') {
+    return;
+  }
+
+  // Check if contact access is enabled
+  const contactAccess = localStorage.getItem('contactAccessEnabled');
+  const hasContactAccess = contactAccess === null || contactAccess === 'true';
+  
+  if (!hasContactAccess) {
+    // Don't seed contacts if access is not enabled
     return;
   }
 
@@ -126,19 +136,34 @@ export function seedDummyContacts(): void {
     return;
   }
 
-  const dummyContacts: Contact[] = [
-    { id: '1', name: 'John Smith', phoneNumber: '+15551234567' },
-    { id: '2', name: 'Sarah Johnson', phoneNumber: '+15559876543' },
-    { id: '3', name: 'Michael Chen', phoneNumber: '+15555555555' },
-    { id: '4', name: 'Emily Davis', phoneNumber: '+15551111111' },
-    { id: '5', name: 'David Wilson', phoneNumber: '+15552222222' },
-    { id: '6', name: 'Lisa Anderson', phoneNumber: '+15553333333' },
-    { id: '7', name: 'Robert Taylor', phoneNumber: '+15554444444' },
-    { id: '8', name: 'Jennifer Martinez', phoneNumber: '+15556666666' },
+  // Generate random contacts for demo
+  const randomNames = [
+    'John Smith', 'Sarah Johnson', 'Michael Chen', 'Emily Davis',
+    'David Wilson', 'Lisa Anderson', 'Robert Taylor', 'Jennifer Martinez',
+    'James Brown', 'Maria Garcia', 'William Jones', 'Patricia Williams',
+    'Richard Miller', 'Linda Moore', 'Joseph Taylor', 'Barbara Jackson'
   ];
 
+  // Generate random phone numbers
+  const generateRandomPhone = () => {
+    const area = Math.floor(Math.random() * 900) + 100;
+    const exchange = Math.floor(Math.random() * 900) + 100;
+    const number = Math.floor(Math.random() * 9000) + 1000;
+    return `+1${area}${exchange}${number}`;
+  };
+
+  // Select random contacts (8-12 contacts)
+  const numContacts = Math.floor(Math.random() * 5) + 8;
+  const selectedNames = [...randomNames].sort(() => Math.random() - 0.5).slice(0, numContacts);
+  
+  const dummyContacts: Contact[] = selectedNames.map((name, index) => ({
+    id: (index + 1).toString(),
+    name,
+    phoneNumber: generateRandomPhone(),
+  }));
+
   saveContacts(dummyContacts);
-  console.log('[Contacts] Seeded dummy contacts');
+  console.log('[Contacts] Seeded random dummy contacts:', dummyContacts.length);
 }
 
 /**

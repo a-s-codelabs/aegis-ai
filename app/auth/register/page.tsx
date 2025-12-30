@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { SplitLayoutWithIPhone } from '@/components/layout/split-layout-with-iphone';
+import { MobileModal } from '@/components/ui/mobile-modal';
+import { Button } from '@/components/ui/button';
 
 // Register Content Component (to be rendered inside iPhone)
 function RegisterContent() {
@@ -17,8 +19,11 @@ function RegisterContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPermissionsPopup, setShowPermissionsPopup] = useState(false);
+  const [contactAccessGranted, setContactAccessGranted] = useState(false);
+  const [aiCallDiversionGranted, setAiCallDiversionGranted] = useState(false);
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleRegister = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (
@@ -71,6 +76,10 @@ function RegisterContent() {
       const data = await response.json();
 
       if (!response.ok) {
+        // Handle 409 Conflict (user already exists)
+        if (response.status === 409) {
+          throw new Error(data.error || 'This phone number is already registered. Please log in instead.');
+        }
         throw new Error(data.error || 'Registration failed');
       }
 
@@ -93,8 +102,13 @@ function RegisterContent() {
         description: 'Account created successfully!',
       });
 
-      // Redirect to home
-      router.push('/home');
+      // Mark user as newly registered
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('isNewUser', 'true');
+      }
+
+      // Show permissions popup
+      setShowPermissionsPopup(true);
     } catch (error) {
       toast({
         title: 'Registration Failed',
@@ -105,6 +119,31 @@ function RegisterContent() {
     } finally {
       setIsLoading(false);
     }
+  }, [name, phoneNumber, password, confirmPassword, toast, router]);
+
+  // Handle permissions popup actions
+  const handlePermissionsContinue = () => {
+    // Save permissions to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('contactAccessEnabled', String(contactAccessGranted));
+      localStorage.setItem('divertCallPopupEnabled', String(aiCallDiversionGranted));
+      
+      // If contact access is granted, seed dummy contacts immediately
+      if (contactAccessGranted) {
+        // Import and call seedDummyContacts
+        import('@/lib/utils/contacts').then(({ seedDummyContacts }) => {
+          seedDummyContacts();
+        });
+      }
+      
+      // Dispatch events to notify other components
+      window.dispatchEvent(new Event('contactAccessChanged'));
+      window.dispatchEvent(new Event('divertCallPopupChanged'));
+    }
+
+    // Close popup and redirect to home
+    setShowPermissionsPopup(false);
+    router.push('/home');
   };
     return (
       <div className="relative flex h-full min-h-screen w-full flex-col overflow-hidden bg-primary font-display text-slate-100">
@@ -330,6 +369,103 @@ function RegisterContent() {
             </div>
           </div>
         </div>
+
+        {/* Permissions Popup Modal */}
+        <MobileModal
+          open={showPermissionsPopup}
+          onOpenChange={setShowPermissionsPopup}
+        >
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h2 className="text-xl font-bold text-white">Enable Permissions</h2>
+              <p className="text-sm text-gray-400">
+                Grant permissions to enhance your Aegis AI experience
+              </p>
+            </div>
+
+            {/* Contact Access Permission */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-800/50">
+                    <span className="material-symbols-outlined text-[#26d9bb]">
+                      contacts
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-white">Contact Access</h3>
+                    <p className="text-xs text-gray-400">
+                      Access your contacts to identify callers
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setContactAccessGranted((prev) => !prev)}
+                  className={`w-12 h-6 rounded-full transition-all duration-200 flex-shrink-0 ${
+                    contactAccessGranted
+                      ? 'bg-[#26d9bb]'
+                      : 'bg-gray-600'
+                  } relative`}
+                  aria-label={contactAccessGranted ? 'Disable contact access' : 'Enable contact access'}
+                  role="switch"
+                  aria-checked={contactAccessGranted}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 shadow-md ${
+                      contactAccessGranted ? 'translate-x-6' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+
+            {/* AI Call Diversion Permission */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-800/50">
+                    <span className="material-symbols-outlined text-[#26d9bb]">
+                      shield
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-white">AI Call Diversion</h3>
+                    <p className="text-xs text-gray-400">
+                      Show popup to divert suspicious calls to AI
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAiCallDiversionGranted((prev) => !prev)}
+                  className={`w-12 h-6 rounded-full transition-all duration-200 flex-shrink-0 ${
+                    aiCallDiversionGranted
+                      ? 'bg-[#26d9bb]'
+                      : 'bg-gray-600'
+                  } relative`}
+                  aria-label={aiCallDiversionGranted ? 'Disable AI call diversion' : 'Enable AI call diversion'}
+                  role="switch"
+                  aria-checked={aiCallDiversionGranted}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 shadow-md ${
+                      aiCallDiversionGranted ? 'translate-x-6' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+
+            {/* Continue Button */}
+            <Button
+              onClick={handlePermissionsContinue}
+              className="w-full h-12 bg-[#26d9bb] text-slate-900 font-bold hover:bg-teal-300"
+            >
+              Continue
+            </Button>
+          </div>
+        </MobileModal>
       </div>
     );
 }
