@@ -127,3 +127,6 @@ logs
 # Sentry
 .sentryclirc
 
+# Local database
+/data/
+

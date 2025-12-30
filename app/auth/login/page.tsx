@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { SplitLayoutWithIPhone } from '@/components/layout/split-layout-with-iphone';
 
-export default function LoginPage() {
+// Login Content Component (to be rendered inside iPhone)
+function LoginContent() {
   const router = useRouter();
   const { toast } = useToast();
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -78,9 +79,6 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
-
-  // Login Content Component (to be rendered inside iPhone)
-  function LoginContent() {
     return (
       <div className="relative flex h-full min-h-screen w-full flex-col overflow-hidden bg-primary font-display text-slate-100">
         {/* Background layers */}
@@ -91,7 +89,7 @@ export default function LoginPage() {
           style={{ backgroundSize: '24px 24px', filter: 'invert(1)' }}
         />
 
-        <div className="relative z-10 flex h-full min-h-screen flex-1 flex-col px-6 pb-8 pt-12">
+        <div className="relative z-10 flex h-full min-h-screen flex-1 flex-col px-6 pb-8 pt-12 hide-scrollbar">
           <div className="mb-8 flex w-full items-center justify-between">
             <button
               type="button"
@@ -247,8 +245,9 @@ export default function LoginPage() {
         </div>
       </div>
     );
-  }
+}
 
+export default function LoginPage() {
   // Prepare left content (instructions)
   const leftContent = (
     <>

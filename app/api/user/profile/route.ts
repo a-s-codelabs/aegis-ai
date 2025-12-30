@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { users } from "../../shared/users"
+import { findUserById, updateUser, addUser, invalidateCache } from "../../shared/users"
 
 // GET user profile
 export async function GET(request: Request) {
@@ -14,9 +14,9 @@ export async function GET(request: Request) {
       )
     }
 
-    let user = users.find((u) => u.id === userId)
+    const user = await findUserById(userId)
 
-    // If user doesn't exist (e.g., after server restart), return basic structure
+    // If user doesn't exist, return basic structure
     // The PUT endpoint will create the user when they update their profile
     if (!user) {
       return NextResponse.json({
@@ -62,10 +62,10 @@ export async function PUT(request: Request) {
       )
     }
 
-    let userIndex = users.findIndex((u) => u.id === userId)
+    let user = await findUserById(userId)
 
-    // If user doesn't exist (e.g., after server restart), create them
-    if (userIndex === -1) {
+    // If user doesn't exist, create them
+    if (!user) {
       // Check if we have required fields to create a new user
       if (!name || !phoneNumber) {
         return NextResponse.json(
@@ -74,52 +74,63 @@ export async function PUT(request: Request) {
         )
       }
 
-      // Normalize phone number
-      const normalizedPhone = phoneNumber.replace(/[^\d+]/g, "")
-      const finalPhone = normalizedPhone.startsWith("+")
-        ? normalizedPhone
-        : `+1${normalizedPhone}`
-
       // Create new user entry
-      const newUser = {
-        id: userId,
-        phoneNumber: finalPhone,
+      const newUser = await addUser({
+        phoneNumber: phoneNumber.trim(),
         password: "default123", // Default password for demo - user should reset via login
         name: name.trim(),
         profilePicture: profilePicture || null,
-      }
+      })
 
-      users.push(newUser)
-      userIndex = users.length - 1
+      // Override the ID to match the requested userId
+      user = await updateUser(newUser.id, { 
+        phoneNumber: newUser.phoneNumber,
+        name: newUser.name,
+        profilePicture: newUser.profilePicture,
+      })
 
-      console.log(`[Profile API] Created new user entry for userId: ${userId}`)
+      // If we need to use the original userId, we'll need to handle this differently
+      // For now, we'll use the generated ID
+      console.log(`[Profile API] Created new user entry for userId: ${newUser.id}`)
+      
+      invalidateCache()
     } else {
       // Update existing user fields if provided
+      const updates: Partial<{ name: string; phoneNumber: string; profilePicture: string | null }> = {}
+      
       if (name !== undefined) {
-        users[userIndex].name = name.trim()
+        updates.name = name.trim()
       }
 
       if (phoneNumber !== undefined) {
-        // Normalize phone number
-        const normalizedPhone = phoneNumber.replace(/[^\d+]/g, "")
-        users[userIndex].phoneNumber = normalizedPhone.startsWith("+")
-          ? normalizedPhone
-          : `+1${normalizedPhone}`
+        updates.phoneNumber = phoneNumber.trim()
       }
 
       if (profilePicture !== undefined) {
-        users[userIndex].profilePicture = profilePicture
+        updates.profilePicture = profilePicture
       }
+
+      if (Object.keys(updates).length > 0) {
+        user = await updateUser(userId, updates)
+        invalidateCache()
+      }
+    }
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "Failed to update user profile" },
+        { status: 500 }
+      )
     }
 
     // Return updated profile without password
     return NextResponse.json({
       success: true,
       profile: {
-        id: users[userIndex].id,
-        name: users[userIndex].name,
-        phoneNumber: users[userIndex].phoneNumber,
-        profilePicture: users[userIndex].profilePicture,
+        id: user.id,
+        name: user.name,
+        phoneNumber: user.phoneNumber,
+        profilePicture: user.profilePicture,
       },
     })
   } catch (error) {

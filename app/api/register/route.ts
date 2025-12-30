@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { users } from "../shared/users"
+import { findUserByPhone, addUser, invalidateCache } from "../shared/users"
 
 export async function POST(request: Request) {
   try {
@@ -20,14 +20,8 @@ export async function POST(request: Request) {
       )
     }
 
-    // Normalize phone number for comparison
-    const normalizedPhone = phoneNumber.replace(/[^\d+]/g, "")
-
-    // Check if user already exists
-    const existingUser = users.find((u) => {
-      const userPhoneNormalized = u.phoneNumber.replace(/[^\d+]/g, "")
-      return userPhoneNormalized === normalizedPhone
-    })
+    // Check if user already exists (normalization handled in findUserByPhone)
+    const existingUser = await findUserByPhone(phoneNumber)
 
     if (existingUser) {
       return NextResponse.json(
@@ -36,18 +30,16 @@ export async function POST(request: Request) {
       )
     }
 
-    // Create new user
-    const newUser = {
-      id: (users.length + 1).toString(),
-      phoneNumber: normalizedPhone.startsWith("+")
-        ? normalizedPhone
-        : `+1${normalizedPhone}`,
-      password: password, // In production, hash this with bcrypt
+    // Create new user (normalization and ID generation handled in addUser)
+    const newUser = await addUser({
+      phoneNumber: phoneNumber.trim(),
+      password: password.trim(), // In production, hash this with bcrypt
       name: name.trim(),
-      profilePicture: null as string | null,
-    }
+      profilePicture: null,
+    })
 
-    users.push(newUser)
+    // Invalidate cache after adding user
+    invalidateCache()
 
     // Note: New users will have an empty contact list by default
     // The contacts API will return an empty array for users without contacts

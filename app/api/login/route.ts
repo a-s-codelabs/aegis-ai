@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { users } from "../shared/users"
+import { findUserByPhone } from "../shared/users"
 
 export async function POST(request: Request) {
   try {
@@ -13,14 +13,8 @@ export async function POST(request: Request) {
       )
     }
 
-    // Normalize phone number for comparison
-    const normalizedPhone = phoneNumber.replace(/[^\d+]/g, "")
-
-    // Find user by phone number
-    const user = users.find((u) => {
-      const userPhoneNormalized = u.phoneNumber.replace(/[^\d+]/g, "")
-      return userPhoneNormalized === normalizedPhone
-    })
+    // Find user by phone number (normalization handled in findUserByPhone)
+    const user = await findUserByPhone(phoneNumber)
 
     if (!user) {
       return NextResponse.json(
@@ -30,7 +24,7 @@ export async function POST(request: Request) {
     }
 
     // Check password (in production, use bcrypt or similar)
-    if (user.password !== password) {
+    if (user.password !== password.trim()) {
       return NextResponse.json(
         { error: "Invalid phone number or password" },
         { status: 401 }

@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { SplitLayoutWithIPhone } from '@/components/layout/split-layout-with-iphone';
 
-export default function RegisterPage() {
+// Register Content Component (to be rendered inside iPhone)
+function RegisterContent() {
   const router = useRouter();
   const { toast } = useToast();
   const [name, setName] = useState('');
@@ -105,9 +106,6 @@ export default function RegisterPage() {
       setIsLoading(false);
     }
   };
-
-  // Register Content Component (to be rendered inside iPhone)
-  function RegisterContent() {
     return (
       <div className="relative flex h-full min-h-screen w-full flex-col overflow-hidden bg-primary font-display text-slate-100">
         {/* Background layers */}
@@ -118,7 +116,7 @@ export default function RegisterPage() {
           style={{ backgroundSize: '24px 24px', filter: 'invert(1)' }}
         />
 
-        <div className="relative z-10 flex h-full min-h-screen flex-1 flex-col items-center overflow-y-auto px-6 py-8">
+        <div className="relative z-10 flex h-full min-h-screen flex-1 flex-col items-center overflow-y-auto px-6 py-8 hide-scrollbar">
           {/* Back Button */}
           <div className="mb-2 flex w-full items-center justify-between">
             <button
@@ -264,12 +262,21 @@ export default function RegisterPage() {
                     name="confirmPassword"
                     type={showConfirmPassword ? 'text' : 'password'}
                     placeholder="Confirm password"
-                    className="block w-full rounded-xl border border-slate-700 bg-slate-800/40 py-3.5 pl-11 pr-4 font-medium text-slate-100 placeholder-slate-500 transition-all focus:border-[#26d9bb] focus:outline-none focus:ring-1 focus:ring-[#26d9bb] sm:text-sm"
+                    className="block w-full rounded-xl border border-slate-700 bg-slate-800/40 py-3.5 pl-11 pr-12 font-medium text-slate-100 placeholder-slate-500 transition-all focus:border-[#26d9bb] focus:outline-none focus:ring-1 focus:ring-[#26d9bb] sm:text-sm"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     disabled={isLoading}
                     required
                   />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 flex cursor-pointer items-center pr-4 text-slate-600 transition-colors hover:text-slate-300"
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  >
+                    <span className="material-symbols-outlined text-[20px]">
+                      {showConfirmPassword ? 'visibility' : 'visibility_off'}
+                    </span>
+                  </button>
                 </div>
               </div>
 
@@ -325,8 +332,9 @@ export default function RegisterPage() {
         </div>
       </div>
     );
-  }
+}
 
+export default function RegisterPage() {
   // Prepare left content (instructions)
   const leftContent = (
     <>
