@@ -1,7 +1,6 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { ShieldLockLogo } from "@/components/brand-logo"
 
 interface IPhoneMockupProps {
   onAppClick?: () => void
@@ -118,7 +117,14 @@ export function IPhoneMockup({ onAppClick }: IPhoneMockupProps) {
               
               {/* Shield icon */}
               <div className="drop-shadow-[0_0_10px_rgba(45,212,191,0.4)] group-hover:drop-shadow-[0_0_20px_rgba(45,212,191,0.6)] transition-all">
-                <ShieldLockLogo size={36} />
+                <div className="w-10 h-10 bg-[#26d9bb]/20 rounded-full flex items-center justify-center overflow-visible">
+                  <span
+                    className="material-symbols-outlined text-[#26d9bb]"
+                    style={{ fontVariationSettings: '"FILL" 1, "wght" 600', fontSize: '28px' }}
+                  >
+                    shield
+                  </span>
+                </div>
               </div>
 
               {/* Glowing dot indicator */}
@@ -139,7 +145,7 @@ export function IPhoneMockup({ onAppClick }: IPhoneMockupProps) {
           <div className="absolute bottom-32 left-4 right-4">
             <div className="bg-gray-200/80 backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-2">
               <span className="text-gray-500">🔍</span>
-              <span className="text-gray-500 text-sm">Q Search</span>
+              <span className="text-gray-500 text-sm">Search</span>
             </div>
           </div>
 

@@ -1,6 +1,5 @@
 "use client"
 
-import { ShieldLockLogo } from "@/components/brand-logo"
 import Link from "next/link"
 import { Button } from '@/components/ui/button';
 import { SplitLayoutWithIPhone } from '@/components/layout/split-layout-with-iphone';
@@ -51,9 +50,16 @@ export default function AppEntryPage() {
                 {/* Inner border */}
                 <div className="absolute inset-3 rounded-[2rem] border border-white/5 pointer-events-none" />
 
-                {/* Shield icon - size 72 to match reference */}
+                {/* Shield icon */}
                 <div className="drop-shadow-[0_0_15px_rgba(45,212,191,0.4)]">
-                  <ShieldLockLogo size={72} />
+                  <div className="w-16 h-16 bg-[#26d9bb]/20 rounded-full flex items-center justify-center overflow-visible">
+                    <span
+                      className="material-symbols-outlined text-[#26d9bb]"
+                      style={{ fontVariationSettings: '"FILL" 1, "wght" 600', fontSize: '72px' }}
+                    >
+                      shield
+                    </span>
+                  </div>
                 </div>
 
                 {/* Glowing dot in top-right */}

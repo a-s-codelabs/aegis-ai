@@ -2,7 +2,6 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ShieldLockLogo } from "@/components/brand-logo"
 
 export default function AppPage() {
   const router = useRouter()
@@ -85,9 +84,16 @@ export default function AppPage() {
                     <div className="absolute h-32 w-32 rounded-full bg-[#26d9bb33] blur-3xl animate-pulse" />
                     <div className="absolute h-24 w-24 rounded-full bg-[#26d9bb1a] blur-2xl" />
 
-                    {/* Shield + lock logo */}
-                    <div className="relative z-10 text-[#26d9bb] drop-shadow-[0_0_15px_rgba(38,217,187,0.3)]">
-                      <ShieldLockLogo size={72} />
+                    {/* Shield logo */}
+                    <div className="relative z-10 flex items-center justify-center">
+                      <div className="w-16 h-16 bg-[#26d9bb]/20 rounded-full flex items-center justify-center drop-shadow-[0_0_15px_rgba(38,217,187,0.3)] overflow-visible">
+                        <span
+                          className="material-symbols-outlined text-[#26d9bb]"
+                          style={{ fontVariationSettings: '"FILL" 1, "wght" 600', fontSize: '45px' }}
+                        >
+                          shield
+                        </span>
+                      </div>
                     </div>
                   </div>
 
