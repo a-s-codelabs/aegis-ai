@@ -42,6 +42,7 @@ interface DashboardContentProps {
     keywords: string[];
     transcript: TranscriptEntry[];
     startTime?: Date;
+    audioUrl?: string;
   } | null;
   isFullPageMonitoring: boolean;
   calls: Call[];
@@ -70,6 +71,8 @@ interface FullPageMonitoringContentProps {
     keywords: string[];
     transcript: TranscriptEntry[];
     startTime?: Date;
+    audioUrl?: string;
+    conversationId?: string;
   };
   visibleTranscript: TranscriptEntry[];
   realtimeScamScore: number;
@@ -904,6 +907,7 @@ export default function DashboardPage() {
     transcript: TranscriptEntry[];
     startTime?: Date;
     conversationId?: string;
+    audioUrl?: string;
   } | null>(null);
   const [visibleTranscript, setVisibleTranscript] = useState<TranscriptEntry[]>(
     []
@@ -1465,6 +1469,14 @@ export default function DashboardPage() {
                 console.warn('[Dashboard] 3. Audio file creation failed (check server logs)');
               } else {
                 console.log('[Dashboard] ✅ Audio URL received:', audioUrl);
+                // Update activeCall with audioUrl
+                setActiveCall((prev) => {
+                  if (!prev) return prev;
+                  return {
+                    ...prev,
+                    audioUrl: audioUrl,
+                  };
+                });
               }
 
               // Update call log entry with audio URL
@@ -1492,21 +1504,28 @@ export default function DashboardPage() {
               
               if (callLogIndex !== -1) {
                 // Only save audioUrl if it's a valid non-empty string
-                const audioUrlToSave = (audioUrl && typeof audioUrl === 'string' && audioUrl.trim() !== '') 
-                  ? audioUrl 
-                  : undefined;
+                let audioUrlToSave: string | undefined = undefined;
+                if (audioUrl && typeof audioUrl === 'string' && audioUrl.trim() !== '') {
+                  // Normalize audioUrl path - ensure it starts with /
+                  const normalizedUrl = audioUrl.trim();
+                  audioUrlToSave = normalizedUrl.startsWith('/') 
+                    ? normalizedUrl 
+                    : `/${normalizedUrl}`;
+                }
                 
                 const updatedLog = {
                   ...callLogs[callLogIndex],
-                  audioUrl: audioUrlToSave, // Save audioUrl only if valid string
+                  audioUrl: audioUrlToSave, // Save normalized audioUrl
                 };
                 callLogs[callLogIndex] = updatedLog;
                 
-                console.log('[Dashboard] 📝 Preparing to save audioUrl:', {
+                console.log('[Dashboard] 📝 Preparing to save audioUrl to localStorage:', {
                   originalAudioUrl: audioUrl,
                   audioUrlToSave,
                   type: typeof audioUrlToSave,
                   willSave: !!audioUrlToSave,
+                  conversationId: currentActiveCall.conversationId,
+                  callLogId: updatedLog.id,
                 });
                 
                 // CRITICAL: Save to localStorage

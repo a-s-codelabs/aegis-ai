@@ -5,6 +5,7 @@ import { SplitLayoutWithIPhone } from '@/components/layout/split-layout-with-iph
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { TranscriptEntry } from '@/lib/utils/conversation-analysis';
+import { AudioPlayer } from '@/components/ui/audio-player';
 
 interface UserSession {
   userId: string;
@@ -56,13 +57,24 @@ export default function CallLogsPage() {
             const logs = JSON.parse(storedLogs);
             // Convert timestamp strings back to Date objects and sort by timestamp descending (newest first)
             const parsedLogs = logs
-              .map((log: CallLog) => ({
-                ...log,
-                timestamp: new Date(log.timestamp),
-                // Ensure audioUrl is preserved
-                audioUrl: log.audioUrl,
-                conversationId: log.conversationId,
-              }))
+              .map((log: CallLog) => {
+                // Normalize audioUrl if it exists
+                let normalizedAudioUrl = log.audioUrl;
+                if (normalizedAudioUrl && typeof normalizedAudioUrl === 'string') {
+                  normalizedAudioUrl = normalizedAudioUrl.trim();
+                  if (!normalizedAudioUrl.startsWith('/')) {
+                    normalizedAudioUrl = `/${normalizedAudioUrl}`;
+                  }
+                }
+                
+                return {
+                  ...log,
+                  timestamp: new Date(log.timestamp),
+                  // Ensure audioUrl is preserved and normalized
+                  audioUrl: normalizedAudioUrl,
+                  conversationId: log.conversationId,
+                };
+              })
               .sort((a: CallLog, b: CallLog) => {
                 const timeA = a.timestamp instanceof Date ? a.timestamp.getTime() : new Date(a.timestamp).getTime();
                 const timeB = b.timestamp instanceof Date ? b.timestamp.getTime() : new Date(b.timestamp).getTime();
@@ -75,10 +87,18 @@ export default function CallLogsPage() {
               console.log('[CallLogs] ✅ Found calls with audio:', withAudio.map((log: CallLog) => ({
                 id: log.id,
                 number: log.number,
+                conversationId: log.conversationId,
                 audioUrl: log.audioUrl,
+                audioUrlType: typeof log.audioUrl,
               })));
+              console.log('[CallLogs] 📊 Audio summary:', {
+                totalCalls: parsedLogs.length,
+                callsWithAudio: withAudio.length,
+                callsWithoutAudio: parsedLogs.length - withAudio.length,
+              });
             } else {
               console.log('[CallLogs] ⚠️ No calls with audioUrl found in localStorage');
+              console.log('[CallLogs] 📊 Total calls loaded:', parsedLogs.length);
             }
             
             setCallLogs(parsedLogs);
@@ -305,7 +325,27 @@ export default function CallLogsPage() {
                     {/* Expanded Transcript */}
                     {expandedCallId === call.id && (
                       <div className="border-t border-slate-700/50 bg-slate-900/60">
-                        {/* Recorded Audio section removed per user request */}
+                        {/* Recorded Audio Section */}
+                        <div className="p-4 border-b border-slate-700/50">
+                          <h4 className="text-white font-semibold text-xs flex items-center gap-2 mb-3">
+                            <span className="material-symbols-outlined text-sm text-[#26d9bb]">
+                              library_music
+                            </span>
+                            Recorded Audio
+                          </h4>
+                          {call.audioUrl ? (
+                            <AudioPlayer
+                              src={call.audioUrl.startsWith('/') ? call.audioUrl : `/${call.audioUrl}`}
+                            />
+                          ) : (
+                            <div className="flex items-center gap-2 text-slate-400 text-xs py-2">
+                              <span className="material-symbols-outlined text-sm">
+                                volume_off
+                              </span>
+                              <span>Audio recording not available for this call.</span>
+                            </div>
+                          )}
+                        </div>
                         
                         {/* Transcript Section */}
                         <div className="p-4 space-y-3 max-h-96 overflow-y-auto scrollbar-hide">
