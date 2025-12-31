@@ -1542,12 +1542,25 @@ export default function DashboardPage() {
                     if (directLog && directLog.audioUrl) {
                       console.log('[Dashboard] ✅✅✅ CONFIRMED: audioUrl is in localStorage:', directLog.audioUrl);
                     } else if (directLog) {
-                      console.error('[Dashboard] ❌❌❌ CRITICAL: audioUrl is MISSING from localStorage entry!');
-                      console.error('[Dashboard] Entry:', JSON.stringify(directLog, null, 2));
+                      // Only log as error if we actually expected an audioUrl but it's missing
+                      // If audioUrlToSave was undefined (no session/recording), this is expected behavior
+                      if (audioUrlToSave) {
+                        console.error('[Dashboard] ❌❌❌ CRITICAL: audioUrl is MISSING from localStorage entry!');
+                        console.error('[Dashboard] Entry:', JSON.stringify(directLog, null, 2));
+                        console.error('[Dashboard] Expected audioUrl:', audioUrlToSave);
+                      } else {
+                        // No audioUrl is expected (no session/recording) - this is normal
+                        console.log('[Dashboard] ℹ️ No audioUrl in localStorage (expected - no recording session)');
+                      }
                     }
                   }
                 } else {
-                  console.error('[Dashboard] ❌ CRITICAL: Could not verify audioUrl was saved!');
+                  // Only log as error if we expected to save an audioUrl
+                  if (audioUrlToSave) {
+                    console.error('[Dashboard] ❌ CRITICAL: Could not verify audioUrl was saved!');
+                  } else {
+                    console.log('[Dashboard] ℹ️ Could not verify entry (no audioUrl expected)');
+                  }
                 }
                 
                 window.dispatchEvent(new CustomEvent('callLogsUpdated'));
